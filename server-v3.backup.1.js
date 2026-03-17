@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const { Client } = require('ssh2');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
 
 const app = express();
 const server = http.createServer(app);
@@ -189,7 +190,6 @@ app.post('/api/sftp/upload', express.json({ limit: '50mb' }), async (req, res) =
 });
 
 // SFTP 文件下载
-// SFTP 文件下载
 app.get('/api/sftp/download', async (req, res) => {
   const { serverId, path: filePath } = req.query;
   
@@ -243,7 +243,7 @@ app.get('/api/sftp/download', async (req, res) => {
               // 获取文件名
               const filename = filePath.split('/').pop();
               
-              res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+              res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(filename)}\"`);
               res.setHeader('Content-Type', 'application/octet-stream');
               res.send(data);
             }
@@ -263,7 +263,7 @@ app.get('/api/sftp/download', async (req, res) => {
     res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
   }
 });
-//文件显示
+
 app.get('/api/sftp/list', async (req, res) => {
   const { serverId, path: remotePath = '/' } = req.query;
   
