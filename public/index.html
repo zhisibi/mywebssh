@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebSSH Demo</title>
+  <style>
+    body { margin: 0; background: #000; color: #0f0; font-family: monospace; }
+    #terminal {
+      width: 100vw;
+      height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal" tabindex="0"></div>
+  <script>
+    const term = document.getElementById('terminal');
+    let ws;
+
+    function connect() {
+      ws = new WebSocket(`ws://${location.host}`);
+
+      ws.onopen = () => {
+        writeText('*** Connected to WebSSH server ***\r\n');
+        term.focus();
+      };
+
+      ws.onmessage = (event) => {
+        writeText(event.data);
+      };
+
+      ws.onclose = () => {
+        writeText('\r\n*** Connection closed ***\r\n');
+      };
+
+      ws.onerror = (err) => {
+        writeText('\r\n*** WebSocket error ***\r\n');
+      };
+    }
+
+    function writeText(text) {
+      term.textContent += text;
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // 监听键盘输入，把按键发送给后端
+    term.addEventListener('keydown', (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+      // 处理常见按键
+      if (e.key === 'Enter') {
+        ws.send('\r');
+        e.preventDefault();
+      } else if (e.key === 'Backspace') {
+        ws.send('\x7f');
+        e.preventDefault();
+      } else if (e.key.length === 1) {
+        ws.send(e.key);
+        e.preventDefault();
+      } else if (e.key === 'ArrowUp') {
+        ws.send('\x1b[A');
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        ws.send('\x1b[B');
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight') {
+        ws.send('\x1b[C');
+        e.preventDefault();
+      } else if (e.key === 'ArrowLeft') {
+        ws.send('\x1b[D');
+        e.preventDefault();
+      } else if (e.ctrlKey && e.key === 'c') {
+        ws.send('\x03'); // Ctrl-C
+        e.preventDefault();
+      } else if (e.ctrlKey && e.key === 'd') {
+        ws.send('\x04'); // Ctrl-D
+        e.preventDefault();
+      }
+    });
+
+    connect();
+  </script>
+</body>
+</html>

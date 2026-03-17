@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebSSH - 连接诊断</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    h1, h2 {
+      color: #333;
+    }
+    
+    .test-item {
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 4px solid #ddd;
+    }
+    
+    .test-success {
+      border-left-color: #48bb78;
+      background: #f0fff4;
+    }
+    
+    .test-failure {
+      border-left-color: #f56565;
+      background: #fff5f5;
+    }
+    
+    .test-warning {
+      border-left-color: #ed8936;
+      background: #fffbeb;
+    }
+    
+    pre {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    
+    .btn:hover {
+      background: #5a67d8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>WebSSH 连接诊断工具</h1>
+    <p>这个页面帮助你诊断 WebSSH 连接问题。</p>
+  </div>
+  
+  <div class="card">
+    <h2>1. API 服务测试</h2>
+    <div class="test-item" id="apiTest">
+      正在测试 API 连接...
+    </div>
+    <button class="btn" onclick="testAPI()">重新测试 API</button>
+  </div>
+  
+  <div class="card">
+    <h2>2. 服务器配置</h2>
+    <div id="serverConfig">
+      正在加载服务器配置...
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>3. 连接建议</h2>
+    <div id="advice">
+      <p>如果连接卡在"连接中"，可能的原因：</p>
+      <ul>
+        <li>服务器配置不正确（IP、端口、用户名、密码）</li>
+        <li>目标服务器不可达</li>
+        <li>SSH 服务未运行在目标服务器上</li>
+        <li>网络防火墙阻止了连接</li>
+        <li>认证失败（错误的用户名/密码）</li>
+      </ul>
+      
+      <p><strong>临时解决方案：</strong></p>
+      <p>在配置文件中添加一个可用的服务器配置：</p>
+      <pre>
+{
+  "host": "your-server-ip",
+  "port": 22,
+  "username": "your-username", 
+  "authType": "password",
+  "password": "your-password"
+}
+      </pre>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>4. 快速测试</h2>
+    <button class="btn" onclick="testTerminal()">测试基础终端</button>
+    <button class="btn" onclick="testXTerm()">测试 xterm.js 终端</button>
+    <button class="btn" onclick="openDashboard()">打开管理面板</button>
+  </div>
+
+  <script>
+    async function testAPI() {
+      const apiTest = document.getElementById('apiTest');
+      apiTest.className = 'test-item';
+      apiTest.innerHTML = '正在测试 API 连接...';
+      
+      try {
+        const response = await fetch('/api/servers');
+        if (response.ok) {
+          const servers = await response.json();
+          apiTest.className = 'test-item test-success';
+          apiTest.innerHTML = `
+            <strong>✅ API 连接成功</strong>
+            <div>找到 ${servers.length} 个服务器配置</div>
+            <pre>${JSON.stringify(servers, null, 2)}</pre>
+          `;
+        } else {
+          apiTest.className = 'test-item test-failure';
+          apiTest.innerHTML = `<strong>❌ API 连接失败</strong> (状态码: ${response.status})`;
+        }
+      } catch (error) {
+        apiTest.className = 'test-item test-failure';
+        apiTest.innerHTML = `<strong>❌ API 连接错误</strong>: ${error.message}`;
+      }
+    }
+    
+    async function loadServerConfig() {
+      const serverConfig = document.getElementById('serverConfig');
+      
+      try {
+        const response = await fetch('/api/servers');
+        const servers = await response.json();
+        
+        if (servers.length > 0) {
+          serverConfig.innerHTML = `
+            <div class="test-item test-success">
+              <strong>✅ 找到 ${servers.length} 个服务器配置</strong>
+            </div>
+            ${servers.map(server => `
+              <div class="test-item">
+                <h3>${server.name}</h3>
+                <p>地址: ${server.host}:${server.port}</p>
+                <p>用户名: ${server.username}</p>
+                <p>认证方式: ${server.authType}</p>
+                <p>标签: ${server.tags?.join(', ') || '无'}</p>
+                <p>状态: ${server.enabled ? '✅ 启用' : '❌ 禁用'}</p>
+              </div>
+            `).join('')}
+          `;
+        } else {
+          serverConfig.innerHTML = `
+            <div class="test-item test-warning">
+              <strong>⚠️ 没有找到服务器配置</strong>
+              <p>请在 config.json 中添加服务器配置</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        serverConfig.innerHTML = `
+          <div class="test-item test-failure">
+            <strong>❌ 加载服务器配置失败</strong>: ${error.message}
+          </div>
+        `;
+      }
+    }
+    
+    function testTerminal() {
+      window.open('/terminal.html?server=1', '_blank');
+    }
+    
+    function testXTerm() {
+      window.open('/xterm-terminal.html?server=1', '_blank');
+    }
+    
+    function openDashboard() {
+      window.open('/dashboard.html', '_blank');
+    }
+    
+    // 页面加载时自动运行测试
+    testAPI();
+    loadServerConfig();
+  </script>
+</body>
+</html>

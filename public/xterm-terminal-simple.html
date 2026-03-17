@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebSSH - 简化版终端</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #000;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    .terminal-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    #terminal {
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      outline: none;
+    }
+    
+    .status-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(51, 51, 51, 0.9);
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      border-bottom: 1px solid #666;
+    }
+    
+    .server-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .connection-status {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .status-connecting { background: #ed8936; color: white; }
+    .status-connected { background: #48bb78; color: white; }
+    .status-disconnected { background: #f56565; color: white; }
+    
+    .connection-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .action-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 16px;
+      z-index: 2000;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-bar" id="statusBar">
+    <div class="server-info">
+      <span id="serverName">正在连接...</span>
+      <span id="serverDetails"></span>
+    </div>
+    <div class="connection-actions">
+      <span class="connection-status status-connecting" id="connectionStatus">连接中</span>
+      <button class="action-btn" onclick="reconnect()" id="reconnectBtn" style="display: none;">重连</button>
+      <button class="action-btn" onclick="closeTerminal()">关闭</button>
+    </div>
+  </div>
+  
+  <div class="terminal-container">
+    <div id="terminal" tabindex="0"></div>
+  </div>
+  
+  <div class="loading-overlay" id="loadingOverlay">
+    <div>正在连接 SSH 服务器...</div>
+  </div>
+
+  <script>
+    const term = document.getElementById('terminal');
+    const statusBar = document.getElementById('statusBar');
+    const serverName = document.getElementById('serverName');
+    const serverDetails = document.getElementById('serverDetails');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const reconnectBtn = document.getElementById('reconnectBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    let ws = null;
+    let currentServer = null;
+
+    // 获取URL参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const serverId = urlParams.get('server');
+    
+    if (!serverId) {
+      writeText('错误：未指定服务器ID\r\n');
+      hideLoading();
+    }
+
+    // 获取服务器信息
+    async function getServerInfo() {
+      try {
+        const response = await fetch('/api/servers');
+        const servers = await response.json();
+        const server = servers.find(s => s.id == serverId);
+        
+        if (server) {
+          currentServer = server;
+          serverName.textContent = server.name;
+          serverDetails.textContent = `${server.username}@${server.host}:${server.port}`;
+          connectWebSocket();
+        } else {
+          writeText('错误：服务器不存在\r\n');
+          hideLoading();
+        }
+      } catch (error) {
+        writeText('获取服务器信息失败\r\n');
+        hideLoading();
+      }
+    }
+
+    function connectWebSocket() {
+      console.log('正在建立 WebSocket 连接...');
+      ws = new WebSocket(`ws://${location.host}`);
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket 连接成功');
+        updateStatus('connected', '已连接');
+        reconnectBtn.style.display = 'none';
+        
+        // 发送连接请求
+        ws.send(JSON.stringify({
+          type: 'connect',
+          serverId: parseInt(currentServer.id)
+        }));
+        
+        term.focus();
+        hideLoading();
+      }
+
+      ws.onmessage = (event) => {
+        console.log('收到消息:', event.data);
+        
+        try {
+          const message = JSON.parse(event.data);
+          
+          switch (message.type) {
+            case 'data':
+              writeText(message.data);
+              break;
+            case 'connected':
+              writeText('\r\n*** ' + message.message + ' ***\r\n');
+              break;
+            case 'error':
+              writeText('\r\n*** 错误: ' + message.message + ' ***\r\n');
+              updateStatus('disconnected', '连接错误');
+              reconnectBtn.style.display = 'block';
+              break;
+            case 'close':
+              writeText('\r\n*** ' + message.message + ' ***\r\n');
+              updateStatus('disconnected', '已断开');
+              reconnectBtn.style.display = 'block';
+              break;
+          }
+        } catch (e) {
+          // 如果不是JSON，直接显示
+          writeText(event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket 连接关闭');
+        updateStatus('disconnected', '已断开');
+        reconnectBtn.style.display = 'block';
+        writeText('\r\n*** WebSocket连接已关闭 ***\r\n');
+      };
+
+      ws.onerror = (error) => {
+        console.log('WebSocket 错误:', error.message);
+        updateStatus('disconnected', '连接错误');
+        reconnectBtn.style.display = 'block';
+        writeText('\r\n*** WebSocket连接错误 ***\r\n');
+        hideLoading();
+      };
+    }
+
+    function writeText(text) {
+      term.textContent += text;
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // 监听键盘输入
+    term.addEventListener('keydown', (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+      let dataToSend = null;
+      
+      if (e.key === 'Enter') {
+        dataToSend = '\r';
+      } else if (e.key === 'Backspace') {
+        dataToSend = '\x7f';
+      } else if (e.key.length === 1) {
+        dataToSend = e.key;
+      } else if (e.key === 'ArrowUp') {
+        dataToSend = '\x1b[A';
+      } else if (e.key === 'ArrowDown') {
+        dataToSend = '\x1b[B';
+      } else if (e.key === 'ArrowRight') {
+        dataToSend = '\x1b[C';
+      } else if (e.key === 'ArrowLeft') {
+        dataToSend = '\x1b[D';
+      } else if (e.ctrlKey && e.key === 'c') {
+        dataToSend = '\x03'; // Ctrl-C
+      } else if (e.ctrlKey && e.key === 'd') {
+        dataToSend = '\x04'; // Ctrl-D
+      }
+
+      if (dataToSend) {
+        ws.send(JSON.stringify({
+          type: 'input',
+          data: dataToSend
+        }));
+        e.preventDefault();
+      }
+    });
+
+    function updateStatus(status, text) {
+      connectionStatus.className = `connection-status status-${status}`;
+      connectionStatus.textContent = text;
+    }
+
+    function reconnect() {
+      showLoading();
+      if (ws) {
+        ws.close();
+      }
+      connectWebSocket();
+    }
+
+    function closeTerminal() {
+      if (ws) {
+        ws.close();
+      }
+      window.close();
+    }
+
+    function showLoading() {
+      loadingOverlay.style.display = 'flex';
+    }
+
+    function hideLoading() {
+      loadingOverlay.style.display = 'none';
+    }
+
+    // 初始化
+    showLoading();
+    getServerInfo();
+  </script>
+</body>
+</html>

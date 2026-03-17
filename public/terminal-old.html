@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebSSH - 终端</title>
+  <style>
+    body { margin: 0; background: #000; color: #0f0; font-family: monospace; }
+    #terminal {
+      width: 100vw;
+      height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      outline: none;
+    }
+    .status-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #333;
+      color: #fff;
+      padding: 5px 10px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-bar" id="statusBar">
+    <span id="serverInfo">正在连接...</span>
+    <span id="connectionStatus">连接中</span>
+  </div>
+  <div id="terminal" tabindex="0"></div>
+
+  <script>
+    const term = document.getElementById('terminal');
+    const statusBar = document.getElementById('statusBar');
+    const serverInfo = document.getElementById('serverInfo');
+    const connectionStatus = document.getElementById('connectionStatus');
+    
+    let ws = null;
+    let currentServerId = null;
+
+    // 获取URL参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const serverId = urlParams.get('server');
+    
+    if (!serverId) {
+      writeText('错误：未指定服务器ID');
+      return;
+    }
+
+    // 先获取服务器信息
+    async function getServerInfo() {
+      try {
+        const response = await fetch('/api/servers');
+        const servers = await response.json();
+        const server = servers.find(s => s.id == serverId);
+        
+        if (server) {
+          serverInfo.textContent = `${server.name} (${server.username}@${server.host}:${server.port})`;
+          currentServerId = server.id;
+          connectWebSocket();
+        } else {
+          writeText('错误：服务器不存在');
+        }
+      } catch (error) {
+        writeText('获取服务器信息失败');
+      }
+    }
+
+    function connectWebSocket() {
+      ws = new WebSocket(`ws://${location.host}`);
+
+      ws.onopen = () => {
+        connectionStatus.textContent = '已连接';
+        connectionStatus.style.color = '#48bb78';
+        
+        // 发送连接请求
+        ws.send(JSON.stringify({
+          type: 'connect',
+          serverId: parseInt(currentServerId)
+        }));
+        
+        term.focus();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          
+          switch (message.type) {
+            case 'data':
+              writeText(message.data);
+              break;
+            case 'connected':
+              writeText('*** ' + message.message + ' ***\r\n');
+              break;
+            case 'error':
+              writeText('\r\n*** 错误: ' + message.message + ' ***\r\n');
+              break;
+            case 'close':
+              writeText('\r\n*** ' + message.message + ' ***\r\n');
+              break;
+          }
+        } catch (e) {
+          // 如果不是JSON，直接显示
+          writeText(event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        connectionStatus.textContent = '已断开';
+        connectionStatus.style.color = '#e53e3e';
+        writeText('\r\n*** WebSocket连接已关闭 ***\r\n');
+      };
+
+      ws.onerror = (error) => {
+        connectionStatus.textContent = '连接错误';
+        connectionStatus.style.color = '#e53e3e';
+        writeText('\r\n*** WebSocket连接错误 ***\r\n');
+      };
+    }
+
+    function writeText(text) {
+      term.textContent += text;
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // 监听键盘输入
+    term.addEventListener('keydown', (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+      let dataToSend = null;
+      
+      if (e.key === 'Enter') {
+        dataToSend = '\r';
+      } else if (e.key === 'Backspace') {
+        dataToSend = '\x7f';
+      } else if (e.key.length === 1) {
+        dataToSend = e.key;
+      } else if (e.key === 'ArrowUp') {
+        dataToSend = '\x1b[A';
+      } else if (e.key === 'ArrowDown') {
+        dataToSend = '\x1b[B';
+      } else if (e.key === 'ArrowRight') {
+        dataToSend = '\x1b[C';
+      } else if (e.key === 'ArrowLeft') {
+        dataToSend = '\x1b[D';
+      } else if (e.ctrlKey && e.key === 'c') {
+        dataToSend = '\x03'; // Ctrl-C
+      } else if (e.ctrlKey && e.key === 'd') {
+        dataToSend = '\x04'; // Ctrl-D
+      }
+
+      if (dataToSend) {
+        ws.send(JSON.stringify({
+          type: 'input',
+          data: dataToSend
+        }));
+        e.preventDefault();
+      }
+    });
+
+    // 初始化
+    getServerInfo();
+  </script>
+</body>
+</html>

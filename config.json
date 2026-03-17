@@ -1,0 +1,48 @@
+{
+  "admin": {
+    "username": "admin",
+    "password": "admin123"
+  },
+  "servers": [
+    {
+      "id": 1,
+      "name": "测试服务器 192.168.100.20",
+      "host": "192.168.100.20",
+      "port": 22,
+      "username": "root",
+      "authType": "password",
+      "password": "1234",
+      "tags": [
+        "测试",
+        "本地"
+      ],
+      "enabled": true
+    },
+    {
+      "id": 2,
+      "name": "测试服务器 192.168.100.20",
+      "host": "192.168.100.20",
+      "port": 22,
+      "username": "root",
+      "authType": "password",
+      "password": "1234",
+      "tags": [
+        "测试",
+        "本地"
+      ],
+      "enabled": true
+    },
+    {
+      "id": 1773717831558,
+      "name": "test1",
+      "host": "192.168.100.20",
+      "port": 22,
+      "username": "root",
+      "authType": "password",
+      "tags": [],
+      "password": "1234",
+      "enabled": true
+    }
+  ],
+  "port": 3000
+}
