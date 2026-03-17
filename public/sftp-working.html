@@ -372,71 +372,90 @@
     }
 
 
-	    function displayFileList(files) {
-	  const fileList = document.getElementById('fileList');
-	  
-	  if (files.length === 0) {
-	    fileList.innerHTML = '<div class="loading">目录为空</div>';
-	    return;
-	  }
-	  
-	  fileList.innerHTML = `
-	    <div class="file-table-container">
-	      <table class="file-table">
-	        <thead>
-	          <tr>
-	            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"> 名称</th>
-	            <th>类型</th>
-	            <th>大小</th>
-	            <th>修改时间</th>
-	          </tr>
-	        </thead>
-	        <tbody>
-	          ${files.map(file => {
-	            // 文件类型兜底判断
-	            const ext = file.name.toLowerCase().split('.').pop();
-	            const looksLikeFile = ['txt','log','md','pdf','doc','docx','xls','xlsx','ppt','pptx',
-	                                 'png','jpg','jpeg','gif','zip','rar','7z','tar','gz','mp4','mp3',
-	                                 'html','css','js','json','xml','yml','yaml','ini','conf','sh','bat',
-	                                 'mov','avi','wmv','flv','webm','m4a','wav','ogg','flac','aac']
-	              .includes(ext);
-	            const isDir = (file.type === 'directory') && !looksLikeFile;
-	            
-	            const icon = isDir ? '📁' : (file.type === 'link' ? '🔗' : '📄');
-	            const typeText = isDir ? '目录' : '文件';
-	            const sizeText = isDir ? '-' : formatFileSize(file.size);
-	            
-	            const filePath = currentPath === '/' 
-	              ? '/' + file.name 
-	              : currentPath + '/' + file.name;
-	            
-	            return `
-	              <tr>
-	                <td>
-	                  <input type="checkbox" class="file-checkbox" data-path="${filePath}" style="margin-right: 8px;" ${isDir ? 'disabled' : ''}>
-	                  <div class="file-name" onclick="handleFileClick('${file.name}', ${isDir})" oncontextmenu="showFileMenu(event, '${file.name}', ${isDir})">
-	                    ${icon} ${file.name}
-	                  </div>
-	                </td>
-	                <td>
-	                  <span class="file-type ${isDir ? 'directory' : 'file'}">
-	                    ${typeText}
-	                  </span>
-	                </td>
-	                <td class="file-size">
-	                  ${sizeText}
-	                </td>
-	                <td class="file-size">
-	                  ${new Date(file.mtime * 1000).toLocaleString()}
-	                </td>
-	              </tr>
-	            `;
-	          }).join('')}
-	        </tbody>
-	      </table>
-	    </div>
-	  `;
-	}
+function displayFileList(files) {
+  const fileList = document.getElementById('fileList');
+  
+  if (files.length === 0) {
+    fileList.innerHTML = '<div class="loading">目录为空</div>';
+    return;
+  }
+  
+  fileList.innerHTML = `
+    <div class="file-table-container">
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"> 名称</th>
+            <th>类型</th>
+            <th>大小</th>
+            <th>修改时间</th>
+            <th>权限</th> <!-- 新增权限列 -->
+          </tr>
+        </thead>
+        <tbody>
+          ${files.map(file => {
+            // 文件类型兜底判断 (保持不变)
+            const ext = file.name.toLowerCase().split('.').pop();
+            const looksLikeFile = ['txt','log','md','pdf','doc','docx','xls','xlsx','ppt','pptx',
+                                 'png','jpg','jpeg','gif','zip','rar','7z','tar','gz','mp4','mp3',
+                                 'html','css','js','json','xml','yml','yaml','ini','conf','sh','bat',
+                                 'mov','avi','wmv','flv','webm','m4a','wav','ogg','flac','aac']
+              .includes(ext);
+            const isDir = (file.type === 'directory') && !looksLikeFile;
+            
+            const icon = isDir ? '📁' : (file.type === 'link' ? '🔗' : '📄');
+            const typeText = isDir ? '目录' : '文件';
+            const sizeText = isDir ? '-' : formatFileSize(file.size);
+            
+            const filePath = currentPath === '/' 
+              ? '/' + file.name 
+              : currentPath + '/' + file.name;
+
+            // 权限显示转换函数
+            function formatPermissions(mode) {
+              if (!mode) return '-';
+              // mode 是 octal string，例如 "100644"
+              const octal = parseInt(mode, 8); // 转换为十进制
+              const rwx = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
+              let perms = '';
+              perms += rwx[(octal >> 6) & 0x7]; // 用户权限
+              perms += rwx[(octal >> 3) & 0x7]; // 组权限
+              perms += rwx[octal & 0x7];       // 其他权限
+              return (isDir ? 'd' : '-') + perms; // 添加文件类型指示
+            }
+            
+            return `
+              <tr>
+                <td>
+                  <input type="checkbox" class="file-checkbox" data-path="${filePath}" style="margin-right: 8px;" ${isDir ? 'disabled' : ''}>
+                  <div class="file-name" onclick="handleFileClick('${file.name}', ${isDir})" oncontextmenu="showFileMenu(event, '${file.name}', ${isDir})">
+                    ${icon} ${file.name}
+                  </div>
+                </td>
+                <td>
+                  <span class="file-type ${isDir ? 'directory' : 'file'}">
+                    ${typeText}
+                  </span>
+                </td>
+                <td class="file-size">
+                  ${sizeText}
+                </td>
+                <td class="file-size">
+                  ${new Date(file.mtime * 1000).toLocaleString()}
+                </td>
+                <td>
+                  <span class="file-permissions">
+                    ${file.mode ? formatPermissions(file.mode) : '-'}
+                  </span>
+                </td> <!-- 显示权限 -->
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
 
 
 //    function handleFileClick(filename, isDirectory = false) {
