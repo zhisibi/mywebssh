@@ -67,6 +67,127 @@ app.delete('/api/servers/:id', (req, res) => {
 });
 
 // SFTP API (开发中)
+// SFTP 创建文件夹
+app.post('/api/sftp/mkdir', async (req, res) => {
+  const { serverId, path: remotePath, dirname } = req.body;
+  
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, message: '服务器不存在' });
+    }
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+
+    if (server.authType === 'password' && server.password) {
+      sshConfig.password = server.password;
+    } else if (server.authType === 'key' && server.privateKey) {
+      sshConfig.privateKey = server.privateKey;
+    }
+
+    const conn = new Client();
+    
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        const remoteDirPath = remotePath === '/' 
+          ? `/${dirname}` 
+          : `${remotePath}/${dirname}`;
+
+        sftp.mkdir(remoteDirPath, (err) => {
+          if (err) {
+            res.status(500).json({ success: false, message: '创建文件夹错误: ' + err.message });
+          } else {
+            res.json({ success: true, message: '文件夹创建成功', path: remoteDirPath });
+          }
+          conn.end();
+        });
+      });
+    });
+
+    conn.on('error', (err) => {
+      res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message });
+    });
+
+    conn.connect(sshConfig);
+    
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
+// SFTP 文件上传
+app.post('/api/sftp/upload', express.json({ limit: '50mb' }), async (req, res) => {
+  const { serverId, path: remotePath, filename, content } = req.body;
+  
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, message: '服务器不存在' });
+    }
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+
+    if (server.authType === 'password' && server.password) {
+      sshConfig.password = server.password;
+    } else if (server.authType === 'key' && server.privateKey) {
+      sshConfig.privateKey = server.privateKey;
+    }
+
+    const conn = new Client();
+    
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        const remoteFilePath = remotePath === '/' ? 
+          `/${filename}` : 
+          `${remotePath}/${filename}`;
+
+        // 将 Base64 内容转换为 Buffer
+        const fileBuffer = Buffer.from(content, 'base64');
+        
+        sftp.writeFile(remoteFilePath, fileBuffer, (err) => {
+          if (err) {
+            res.status(500).json({ success: false, message: '上传文件错误: ' + err.message });
+          } else {
+            res.json({ success: true, message: '文件上传成功', path: remoteFilePath });
+          }
+          conn.end();
+        });
+      });
+    });
+
+    conn.on('error', (err) => {
+      res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message });
+    });
+
+    conn.connect(sshConfig);
+    
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
 // SFTP 文件下载
 app.get('/api/sftp/download', async (req, res) => {
   const { serverId, path: filePath } = req.query;
