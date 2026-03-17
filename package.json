@@ -2,10 +2,10 @@
   "name": "webssh-demo",
   "version": "1.0.0",
   "description": "轻量级 Web SSH 管理工具",
-  "main": "server.js",
+  "main": "server-v3.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server-v3.js",
+    "dev": "node server-v3.js"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

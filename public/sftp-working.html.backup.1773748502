@@ -257,7 +257,6 @@
         <button class="btn" onclick="uploadFile()">📤 上传</button>
         <button class="btn" onclick="createFolder()">📁 新建文件夹</button>
         <button class="btn" onclick="downloadFile()">📥 下载</button>
-        <button class="btn btn-download" onclick="downloadSelected()">📦 批量下载</button>
         <button class="btn btn-primary" onclick="refreshList()">🔄 刷新</button>
         <button class="btn" onclick="goBack()" id="backBtn" style="display: none;">↩️ 返回服务器列表</button>
         <button class="btn btn-close" onclick="closeWindow()">❌ 关闭</button>

@@ -4,339 +4,400 @@
   <meta charset="UTF-8" />
   <title>WebSSH - SFTP 文件浏览器</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      background: #f8f9fa;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      height: 100vh;
-      overflow: hidden;
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f5f7fb; color:#1f2937; }
+    .layout { display:flex; height:100vh; }
+    .sidebar { width:280px; border-right:1px solid #e5e7eb; background:#fff; padding:16px; overflow:auto; transition:all .25s ease; }
+    .sidebar.hidden-sidebar { width:0; padding:0; overflow:hidden; border-right:none; }
+    .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+    .topbar { padding:14px 18px; background:#fff; border-bottom:1px solid #e5e7eb; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
+    .content { padding:16px; overflow:auto; }
+     .table-wrap { overflow:auto; }
+    @media (max-width: 768px) {
+      .layout { flex-direction:column; }
+      .sidebar { width:100%; max-height:40vh; border-right:none; border-bottom:1px solid #e5e7eb; }
+      .sidebar.hidden-sidebar { max-height:0; width:100%; }
+      .topbar { padding:10px 12px; flex-direction:column; align-items:stretch; }
+      .toolbar { width:100%; }
+      .btn { flex:1 1 calc(50% - 8px); text-align:center; }
+      .content { padding:8px; }
+      th, td { padding:10px 8px; font-size:12px; }
+      .actions { flex-wrap:wrap; }
     }
-    
-    .container {
-      display: flex;
-      height: 100vh;
-    }
-    
-    .sidebar {
-      width: 300px;
-      background: white;
-      border-right: 1px solid #e9ecef;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: white;
-    }
-    
-    .header {
-      background: white;
-      padding: 16px 24px;
-      border-bottom: 1px solid #e9ecef;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .file-browser {
-      flex: 1;
-      padding: 24px;
-      overflow-y: auto;
-    }
-    
-    .server-list {
-      margin-bottom: 20px;
-    }
-    
-    .server-item {
-      padding: 12px 16px;
-      border: 1px solid #e9ecef;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .server-item:hover {
-      border-color: #667eea;
-      background: #f8f9ff;
-    }
-    
-    .server-item.active {
-      border-color: #667eea;
-      background: #667eea;
-      color: white;
-    }
-    
-    .server-name {
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .server-details {
-      font-size: 12px;
-      color: #6c757d;
-    }
-    
-    .server-item.active .server-details {
-      color: rgba(255, 255, 255, 0.8);
-    }
-    
-    .file-table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .file-table th,
-    .file-table td {
-      padding: 12px 16px;
-      text-align: left;
-      border-bottom: 1px solid #e9ecef;
-    }
-    
-    .file-table th {
-      background: #f8f9fa;
-      font-weight: 600;
-      color: #495057;
-    }
-    
-    .file-table tr:hover {
-      background: #f8f9ff;
-    }
-    
-    .file-icon {
-      width: 20px;
-      height: 20px;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-    
-    .file-name {
-      font-weight: 500;
-    }
-    
-    .file-size {
-      color: #6c757d;
-      font-size: 14px;
-    }
-    
-    .file-permissions {
-      font-family: monospace;
-      font-size: 12px;
-      color: #6c757d;
-    }
-    
-    .breadcrumb {
-      display: flex;
-      align-items: center;
-      margin-bottom: 16px;
-      background: white;
-      padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    
-    .breadcrumb-item {
-      color: #667eea;
-      cursor: pointer;
-    }
-    
-    .breadcrumb-item:hover {
-      text-decoration: underline;
-    }
-    
-    .breadcrumb-separator {
-      margin: 0 8px;
-      color: #6c757d;
-    }
-    
-    .toolbar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    
-    .btn {
-      padding: 8px 16px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background: white;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-    
-    .btn:hover {
-      border-color: #667eea;
-      background: #f8f9ff;
-    }
-    
-    .btn-primary {
-      background: #667eea;
-      color: white;
-      border-color: #667eea;
-    }
-    
-    .btn-primary:hover {
-      background: #5a67d8;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #6c757d;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #6c757d;
-    }
-    
-    .empty-state h3 {
-      margin-bottom: 8px;
-      color: #495057;
-    }
+    .server-item { border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; }
+    .server-item:hover, .server-item.active { border-color:#4f46e5; background:#eef2ff; }
+    .server-name { font-weight:700; margin-bottom:4px; }
+    .server-meta { color:#6b7280; font-size:12px; }
+    .breadcrumb { display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0; }
+    .crumb { color:#4f46e5; cursor:pointer; }
+    .crumb:hover { text-decoration:underline; }
+    .btn { border:1px solid #d1d5db; background:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }
+    .btn:hover { background:#f9fafb; }
+    .btn.primary { background:#4f46e5; color:#fff; border-color:#4f46e5; }
+    .btn.danger { color:#b91c1c; }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
+    th, td { text-align:left; padding:12px 14px; border-bottom:1px solid #eef2f7; }
+    th { background:#f9fafb; font-size:13px; color:#6b7280; }
+    tr:hover td { background:#fafbff; }
+    .name-cell { display:flex; align-items:center; gap:8px; }
+    .actions { display:flex; gap:8px; }
+    .muted { color:#6b7280; }
+    .login-mask, .modal-mask { position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .card { width:360px; max-width:92vw; background:#fff; border-radius:14px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.15); }
+    .card h3 { margin:0 0 16px; }
+    .input, textarea { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; margin-bottom:10px; font:inherit; }
+    textarea { min-height:320px; resize:vertical; }
+    .hidden { display:none !important; }
+    .status { padding:10px 12px; background:#fff; border-top:1px solid #e5e7eb; color:#6b7280; }
+    .empty { background:#fff; border-radius:12px; padding:60px 20px; text-align:center; color:#6b7280; }
+    .file-link { cursor:pointer; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="sidebar">
-      <h3 style="margin-bottom: 16px;">服务器列表</h3>
-      <div class="server-list" id="serverList">
-        <!-- 服务器列表将通过JS动态生成 -->
+  <div class="layout">
+    <aside class="sidebar hidden-sidebar" id="sidebar">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;">服务器</h3>
+        <button class="btn" onclick="toggleSidebar()">收起</button>
       </div>
-    </div>
-    
-    <div class="main-content">
-      <div class="header">
-        <div class="breadcrumb" id="breadcrumb">
-          <span class="breadcrumb-item" onclick="navigateTo('/')">根目录</span>
-        </div>
+      <div id="serverList"></div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="breadcrumb" id="breadcrumb"></div>
         <div class="toolbar">
-          <button class="btn" onclick="uploadFile()">上传</button>
+          <button class="btn" onclick="toggleSidebar()">服务器</button>
+          <button class="btn" onclick="goParent()">上一级</button>
+          <button class="btn" onclick="refreshList()">刷新</button>
           <button class="btn" onclick="createFolder()">新建文件夹</button>
-          <button class="btn btn-primary" onclick="refreshList()">刷新</button>
+          <button class="btn" onclick="uploadFile()">上传文件</button>
+          <button class="btn primary" onclick="downloadSelected()">批量下载</button>
+          <button class="btn" onclick="logout()">退出</button>
         </div>
       </div>
-      
-      <div class="file-browser">
-        <div id="fileList">
-          <div class="loading" id="loadingState">
-            <div>请选择一个服务器</div>
-          </div>
-        </div>
+      <div class="content">
+        <div id="fileList" class="empty">请选择一个服务器</div>
       </div>
+      <div class="status" id="statusBar">就绪</div>
+    </main>
+  </div>
+
+  <input id="fileInput" type="file" class="hidden" />
+
+  <div id="loginModal" class="login-mask hidden">
+    <div class="card">
+      <h3>登录 WebSSH</h3>
+      <input id="loginUsername" class="input" placeholder="用户名" value="admin" />
+      <input id="loginPassword" class="input" type="password" placeholder="密码" value="admin123" />
+      <button class="btn primary" style="width:100%;" onclick="doLogin()">登录</button>
+    </div>
+  </div>
+
+  <div id="previewModal" class="modal-mask hidden">
+    <div class="card" style="width:900px;max-width:95vw;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 id="previewTitle" style="margin:0;">文件预览</h3>
+        <button class="btn" onclick="closePreview()">关闭</button>
+      </div>
+      <textarea id="previewContent" readonly></textarea>
     </div>
   </div>
 
   <script>
+    let authToken = localStorage.getItem('webssh_token') || null;
     let currentServer = null;
     let currentPath = '/';
-    let ws = null;
+    let currentFiles = [];
+    let selectedPaths = new Set();
 
-    // 加载服务器列表
-    async function loadServers() {
-      try {
-        const response = await fetch('/api/servers');
-        const servers = await response.json();
-        
-        const serverList = document.getElementById('serverList');
-        serverList.innerHTML = '';
-        
-        servers.forEach(server => {
-          const serverItem = document.createElement('div');
-          serverItem.className = 'server-item';
-          serverItem.onclick = () => selectServer(server);
-          
-          serverItem.innerHTML = `
-            <div class="server-name">${server.name}</div>
-            <div class="server-details">${server.username}@${server.host}:${server.port}</div>
-          `;
-          
-          serverList.appendChild(serverItem);
-        });
-        
-      } catch (error) {
-        console.error('加载服务器列表失败:', error);
-      }
+    function setStatus(text) { document.getElementById('statusBar').textContent = text; }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden-sidebar'); }
+    function escapeHtml(str='') { return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    function joinPath(base, name) { return base === '/' ? `/${name}` : `${base}/${name}`; }
+    function formatSize(bytes) {
+      if (bytes == null) return '-';
+      if (bytes < 1024) return bytes + ' B';
+      const units = ['KB','MB','GB','TB'];
+      let i = -1, n = bytes;
+      do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+      return n.toFixed(n >= 10 ? 0 : 1) + ' ' + units[i];
+    }
+    function formatTime(ts) {
+      if (!ts) return '-';
+      return new Date(ts * 1000).toLocaleString('zh-CN');
+    }
+    function icon(type) { return type === 'directory' ? '📁' : type === 'link' ? '🔗' : '📄'; }
+
+    function requireLogin() {
+      const modal = document.getElementById('loginModal');
+      if (!authToken) modal.classList.remove('hidden');
+      else modal.classList.add('hidden');
     }
 
-    function selectServer(server) {
-      // 移除之前的选中状态
-      document.querySelectorAll('.server-item').forEach(item => {
-        item.classList.remove('active');
+    async function authFetch(url, options = {}) {
+      if (!authToken) throw new Error('未登录');
+      const headers = { ...(options.headers || {}), Authorization: `Bearer ${authToken}` };
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        logout(false);
+        throw new Error('登录已失效，请重新登录');
+      }
+      return res;
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
-      
-      // 设置当前选中
-      event.target.closest('.server-item').classList.add('active');
-      
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '登录失败');
+      authToken = data.token;
+      localStorage.setItem('webssh_token', authToken);
+      document.getElementById('loginModal').classList.add('hidden');
+      setStatus('登录成功');
+      loadServers();
+    }
+
+    async function logout(reload = true) {
+      try {
+        if (authToken) {
+          await fetch('/api/logout', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } });
+        }
+      } catch (_) {}
+      authToken = null;
+      localStorage.removeItem('webssh_token');
+      if (reload) location.reload();
+    }
+
+    async function loadServers() {
+      requireLogin();
+      if (!authToken) return;
+      setStatus('正在加载服务器列表...');
+      const res = await authFetch('/api/servers');
+      const servers = await res.json();
+      const box = document.getElementById('serverList');
+      box.innerHTML = '';
+      servers.forEach(server => {
+        const div = document.createElement('div');
+        div.className = 'server-item' + (currentServer && currentServer.id == server.id ? ' active' : '');
+        div.innerHTML = `<div class="server-name">${escapeHtml(server.name)}</div><div class="server-meta">${escapeHtml(server.username)}@${escapeHtml(server.host)}:${server.port || 22}</div>`;
+        div.onclick = () => selectServer(server);
+        box.appendChild(div);
+      });
+      setStatus('服务器列表已加载');
+    }
+
+    async function selectServer(server) {
       currentServer = server;
       currentPath = '/';
-      
+      selectedPaths.clear();
+      await loadServers();
       updateBreadcrumb();
-      connectSFTP();
-    }
-
-    function connectSFTP() {
-      // TODO: 实现 SFTP WebSocket 连接
-      document.getElementById('fileList').innerHTML = `
-        <div class="empty-state">
-          <h3>SFTP 功能开发中</h3>
-          <p>文件浏览功能将在下一个版本中实现</p>
-        </div>
-      `;
+      await refreshList();
     }
 
     function updateBreadcrumb() {
-      const breadcrumb = document.getElementById('breadcrumb');
-      breadcrumb.innerHTML = '<span class="breadcrumb-item" onclick="navigateTo(\'/\')">根目录</span>';
-      
-      if (currentPath !== '/') {
-        const parts = currentPath.split('/').filter(p => p);
-        let path = '';
-        
-        parts.forEach((part, index) => {
-          path += '/' + part;
-          breadcrumb.innerHTML += `
-            <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-item" onclick="navigateTo('${path}')">${part}</span>
-          `;
-        });
+      const box = document.getElementById('breadcrumb');
+      const parts = currentPath.split('/').filter(Boolean);
+      let acc = '';
+      let html = `<span class="crumb" onclick="navigateTo('/')">根目录</span>`;
+      for (const part of parts) {
+        acc += '/' + part;
+        html += `<span>/</span><span class="crumb" onclick="navigateTo('${acc.replace(/'/g, "\\'")}')">${escapeHtml(part)}</span>`;
       }
+      box.innerHTML = html;
     }
 
-    function navigateTo(path) {
-      currentPath = path;
+    async function navigateTo(path) {
+      currentPath = path || '/';
+      selectedPaths.clear();
       updateBreadcrumb();
-      // 重新加载文件列表
-      connectSFTP();
+      await refreshList();
+    }
+
+    async function goParent() {
+      if (currentPath === '/') return;
+      const parts = currentPath.split('/').filter(Boolean);
+      parts.pop();
+      await navigateTo('/' + parts.join('/'));
+    }
+
+    async function refreshList() {
+      if (!currentServer) return;
+      setStatus(`正在读取 ${currentPath} ...`);
+      const res = await authFetch(`/api/sftp/list?serverId=${currentServer.id}&path=${encodeURIComponent(currentPath)}`);
+      const data = await res.json();
+      if (!data.success) return renderEmpty(data.message || '读取失败');
+      currentFiles = data.files || [];
+      renderFiles();
+      setStatus(`已加载 ${currentPath}`);
+    }
+
+    function renderEmpty(text) {
+      document.getElementById('fileList').innerHTML = `<div class="empty">${escapeHtml(text)}</div>`;
+    }
+
+    function toggleSelect(fullPath, checked) {
+      if (checked) selectedPaths.add(fullPath); else selectedPaths.delete(fullPath);
+    }
+
+    function renderFiles() {
+      const box = document.getElementById('fileList');
+      if (!currentFiles.length) return renderEmpty('当前目录为空');
+      box.innerHTML = `<div class="table-wrap"><table>
+        <thead>
+          <tr><th style="width:36px;"></th><th>名称</th><th>大小</th><th>修改时间</th><th>权限</th><th style="width:280px;">操作</th></tr>
+        </thead>
+        <tbody>
+          ${currentFiles.map(file => {
+            const fullPath = joinPath(currentPath, file.name);
+            const isDir = file.type === 'directory';
+            return `<tr>
+              <td><input type="checkbox" onchange="toggleSelect('${fullPath.replace(/'/g, "\\'")}', this.checked)" /></td>
+              <td><div class="name-cell"><span>${icon(file.type)}</span><span class="file-link" onclick="openEntry('${fullPath.replace(/'/g, "\\'")}', '${file.type}')">${escapeHtml(file.name)}</span></div></td>
+              <td>${isDir ? '-' : formatSize(file.size)}</td>
+              <td>${formatTime(file.mtime)}</td>
+              <td><code>${escapeHtml(file.mode || '')}</code></td>
+              <td>
+                <div class="actions">
+                  ${isDir ? `<button class="btn" onclick="navigateTo('${fullPath.replace(/'/g, "\\'")}')">进入</button>` : `<button class="btn" onclick="previewFile('${fullPath.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">预览</button>`}
+                  <button class="btn" onclick="downloadOne('${fullPath.replace(/'/g, "\\'")}')">下载</button>
+                  <button class="btn" onclick="renameEntry('${fullPath.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">重命名</button>
+                  <button class="btn danger" onclick="deleteEntry('${fullPath.replace(/'/g, "\\'")}', '${file.type}', '${file.name.replace(/'/g, "\\'")}')">删除</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>`;
+    }
+
+    function openEntry(fullPath, type) {
+      if (type === 'directory') navigateTo(fullPath);
+      else previewFile(fullPath, fullPath.split('/').pop());
+    }
+
+    async function createFolder() {
+      if (!currentServer) return alert('先选服务器');
+      const dirname = prompt('输入文件夹名');
+      if (!dirname) return;
+      const res = await authFetch('/api/sftp/mkdir', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: currentServer.id, path: currentPath, dirname })
+      });
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '创建失败');
+      await refreshList();
     }
 
     function uploadFile() {
-      alert('文件上传功能开发中...');
+      if (!currentServer) return alert('先选服务器');
+      const input = document.getElementById('fileInput');
+      input.value = '';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setStatus(`正在上传 ${file.name} ...`);
+        const reader = new FileReader();
+        reader.onload = async ev => {
+          const content = String(ev.target.result).split(',')[1];
+          const res = await authFetch('/api/sftp/upload', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverId: currentServer.id, path: currentPath, filename: file.name, content })
+          });
+          const data = await res.json();
+          if (!data.success) return alert(data.message || '上传失败');
+          setStatus(`上传完成：${file.name}`);
+          await refreshList();
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
     }
 
-    function createFolder() {
-      alert('创建文件夹功能开发中...');
+    function downloadOne(fullPath) {
+      const url = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(fullPath)}`;
+      fetchWithAuthDownload(url);
     }
 
-    function refreshList() {
-      if (currentServer) {
-        connectSFTP();
+    function downloadSelected() {
+      if (!currentServer) return alert('先选服务器');
+      if (!selectedPaths.size) return alert('先勾选文件或目录');
+      fetchWithAuthDownload('/api/sftp/download-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: currentServer.id, paths: Array.from(selectedPaths) })
+      }, 'download.zip');
+    }
+
+    async function fetchWithAuthDownload(url, options = null, fallbackName = null) {
+      const opts = options || { method: 'GET' };
+      opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${authToken}` };
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        const text = await res.text();
+        return alert(`下载失败: ${text}`);
       }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      const obj = URL.createObjectURL(blob);
+      a.href = obj;
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const m = disposition.match(/filename="?([^";]+)"?/i);
+      a.download = m ? decodeURIComponent(m[1]) : (fallbackName || 'download');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(obj);
     }
 
-    // 初始化
-    loadServers();
+    async function renameEntry(oldPath, oldName) {
+      const newName = prompt('输入新名称', oldName);
+      if (!newName || newName === oldName) return;
+      const base = oldPath.split('/').slice(0, -1).join('/') || '/';
+      const newPath = joinPath(base, newName);
+      const res = await authFetch('/api/sftp/rename', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: currentServer.id, oldPath, newPath })
+      });
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '重命名失败');
+      await refreshList();
+    }
+
+    async function deleteEntry(targetPath, type, name) {
+      if (!confirm(`确定删除 ${name} 吗？`)) return;
+      const res = await authFetch('/api/sftp/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: currentServer.id, targetPath, type })
+      });
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '删除失败');
+      selectedPaths.delete(targetPath);
+      await refreshList();
+    }
+
+    async function previewFile(filePath, fileName) {
+      const res = await authFetch(`/api/sftp/read?serverId=${currentServer.id}&path=${encodeURIComponent(filePath)}`);
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '读取失败');
+      document.getElementById('previewTitle').textContent = `文件预览 - ${fileName}`;
+      document.getElementById('previewContent').value = data.content || '';
+      document.getElementById('previewModal').classList.remove('hidden');
+    }
+
+    function closePreview() {
+      document.getElementById('previewModal').classList.add('hidden');
+    }
+
+    requireLogin();
+    if (authToken) loadServers();
+    updateBreadcrumb();
   </script>
 </body>
 </html>

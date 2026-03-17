@@ -19,25 +19,27 @@
       "enabled": true
     },
     {
-      "id": 1773717831558,
-      "name": "test1",
-      "host": "192.168.100.20",
+      "id": 1773764983748,
+      "name": "test-add",
+      "host": "127.0.0.1",
       "port": 22,
       "username": "root",
       "authType": "password",
-      "tags": [],
-      "password": "1234",
+      "password": "pwd",
       "enabled": true
     },
     {
-      "id": 1773736292800,
-      "name": "111",
-      "host": "192.168.100.20",
+      "id": 1773765115580,
+      "name": "front-test",
+      "host": "10.0.0.8",
       "port": 22,
-      "username": "root",
+      "username": "ubuntu",
       "authType": "password",
-      "tags": [],
-      "password": "1234",
+      "password": "123456",
+      "tags": [
+        "前端",
+        "回归"
+      ],
       "enabled": true
     }
   ],

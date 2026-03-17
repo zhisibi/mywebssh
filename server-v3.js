@@ -5,6 +5,7 @@ const { Client } = require('ssh2');
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,25 +15,55 @@ const wss = new WebSocket.Server({ server });
 const configPath = path.join(__dirname, 'config.json');
 let config = loadConfig();
 
+// 会话管理
+const sessions = new Map();
+
 // 中间件
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 会话验证中间件
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token || !sessions.has(token)) {
+    return res.status(401).json({ success: false, message: '未授权访问' });
+  }
+  const session = sessions.get(token);
+  session.lastActive = Date.now();
+  sessions.set(token, session);
+  req.session = session;
+  req.token = token;
+  next();
+}
 
 // API 路由
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === config.admin.username && password === config.admin.password) {
-    res.json({ success: true, message: '登录成功' });
+    const token = crypto.randomBytes(16).toString('hex');
+    sessions.set(token, {
+      username,
+      createdAt: Date.now(),
+      lastActive: Date.now()
+    });
+
+    res.json({ success: true, message: '登录成功', token });
   } else {
     res.status(401).json({ success: false, message: '用户名或密码错误' });
   }
 });
 
-app.get('/api/servers', (req, res) => {
+app.post('/api/logout', requireAuth, (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token) sessions.delete(token);
+  res.json({ success: true, message: '已退出登录' });
+});
+
+app.get('/api/servers', requireAuth, (req, res) => {
   res.json(config.servers.filter(server => server.enabled));
 });
 
-app.post('/api/servers', (req, res) => {
+app.post('/api/servers', requireAuth, (req, res) => {
   const newServer = {
     id: Date.now(),
     ...req.body,
@@ -43,7 +74,7 @@ app.post('/api/servers', (req, res) => {
   res.json({ success: true, server: newServer });
 });
 
-app.put('/api/servers/:id', (req, res) => {
+app.put('/api/servers/:id', requireAuth, (req, res) => {
   const id = parseInt(req.params.id);
   const index = config.servers.findIndex(s => s.id === id);
   if (index !== -1) {
@@ -55,7 +86,7 @@ app.put('/api/servers/:id', (req, res) => {
   }
 });
 
-app.delete('/api/servers/:id', (req, res) => {
+app.delete('/api/servers/:id', requireAuth, (req, res) => {
   const id = parseInt(req.params.id);
   const index = config.servers.findIndex(s => s.id === id);
   if (index !== -1) {
@@ -69,7 +100,7 @@ app.delete('/api/servers/:id', (req, res) => {
 
 // SFTP API (开发中)
 // SFTP 创建文件夹
-app.post('/api/sftp/mkdir', async (req, res) => {
+app.post('/api/sftp/mkdir', requireAuth, async (req, res) => {
   const { serverId, path: remotePath, dirname } = req.body;
   
   try {
@@ -128,7 +159,7 @@ app.post('/api/sftp/mkdir', async (req, res) => {
 });
 
 // SFTP 文件上传
-app.post('/api/sftp/upload', express.json({ limit: '50mb' }), async (req, res) => {
+app.post('/api/sftp/upload', requireAuth, express.json({ limit: '50mb' }), async (req, res) => {
   const { serverId, path: remotePath, filename, content } = req.body;
   
   try {
@@ -191,7 +222,7 @@ app.post('/api/sftp/upload', express.json({ limit: '50mb' }), async (req, res) =
 
 // SFTP 文件下载
 // SFTP 文件夹下载
-app.post('/api/sftp/download-batch', async (req, res) => {
+app.post('/api/sftp/download-batch', requireAuth, async (req, res) => {
   const { serverId, paths } = req.body;
 
   if (!Array.isArray(paths) || paths.length === 0) {
@@ -331,7 +362,7 @@ app.post('/api/sftp/download-batch', async (req, res) => {
 
 
 // SFTP 文件下载
-app.get('/api/sftp/download', async (req, res) => {
+app.get('/api/sftp/download', requireAuth, async (req, res) => {
   const { serverId, path: filePath } = req.query;
   
   try {
@@ -405,7 +436,7 @@ app.get('/api/sftp/download', async (req, res) => {
   }
 });
 //文件显示
-app.get('/api/sftp/list', async (req, res) => {
+app.get('/api/sftp/list', requireAuth, async (req, res) => {
   const { serverId, path: remotePath = '/' } = req.query;
   
   try {
@@ -442,20 +473,20 @@ app.get('/api/sftp/list', async (req, res) => {
             res.status(500).json({ success: false, message: '读取目录错误: ' + err.message });
           } else {
             const files = list.map(item => {
-              // 正确的文件类型检测
               let type = 'file';
-              if (item.attrs.isDirectory) {
-                type = 'directory';
-              } else if (item.longname && item.longname.startsWith('l')) {
+              const longname = item.longname || '';
+              if (longname.startsWith('l')) {
                 type = 'link';
+              } else if (typeof item.attrs.isDirectory === 'function' ? item.attrs.isDirectory() : longname.startsWith('d')) {
+                type = 'directory';
               }
-              
+
               return {
                 name: item.filename,
-                longname: item.longname,
-                type: type,
+                longname,
+                type,
                 size: item.attrs.size,
-                mode: item.attrs.mode.toString(8),
+                mode: item.attrs.mode ? item.attrs.mode.toString(8) : '',
                 mtime: item.attrs.mtime,
                 atime: item.attrs.atime
               };
@@ -478,15 +509,175 @@ app.get('/api/sftp/list', async (req, res) => {
   }
 });
 
+app.post('/api/sftp/rename', requireAuth, async (req, res) => {
+  const { serverId, oldPath, newPath } = req.body;
+
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) return res.status(404).json({ success: false, message: '服务器不存在' });
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+    if (server.authType === 'password' && server.password) sshConfig.password = server.password;
+    else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+
+    const conn = new Client();
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+        sftp.rename(oldPath, newPath, (err) => {
+          if (err) res.status(500).json({ success: false, message: '重命名失败: ' + err.message });
+          else res.json({ success: true, message: '重命名成功' });
+          conn.end();
+        });
+      });
+    });
+    conn.on('error', (err) => res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message }));
+    conn.connect(sshConfig);
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
+app.post('/api/sftp/delete', requireAuth, async (req, res) => {
+  const { serverId, targetPath, type } = req.body;
+
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) return res.status(404).json({ success: false, message: '服务器不存在' });
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+    if (server.authType === 'password' && server.password) sshConfig.password = server.password;
+    else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+
+    const conn = new Client();
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        const removeRecursively = (remotePath, done) => {
+          sftp.readdir(remotePath, (err, list) => {
+            if (err) return sftp.rmdir(remotePath, done);
+            let pending = list.length;
+            if (!pending) return sftp.rmdir(remotePath, done);
+
+            list.forEach(item => {
+              const child = remotePath.endsWith('/') ? remotePath + item.filename : remotePath + '/' + item.filename;
+              const longname = item.longname || '';
+              const isDir = typeof item.attrs.isDirectory === 'function' ? item.attrs.isDirectory() : longname.startsWith('d');
+              if (isDir && !longname.startsWith('l')) {
+                removeRecursively(child, after);
+              } else {
+                sftp.unlink(child, after);
+              }
+            });
+
+            function after(err) {
+              if (after.done) return;
+              if (err) {
+                after.done = true;
+                return done(err);
+              }
+              pending -= 1;
+              if (pending === 0) sftp.rmdir(remotePath, done);
+            }
+          });
+        };
+
+        const finish = (err) => {
+          if (err) res.status(500).json({ success: false, message: '删除失败: ' + err.message });
+          else res.json({ success: true, message: '删除成功' });
+          conn.end();
+        };
+
+        if (type === 'directory') removeRecursively(targetPath, finish);
+        else sftp.unlink(targetPath, finish);
+      });
+    });
+    conn.on('error', (err) => res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message }));
+    conn.connect(sshConfig);
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
+app.get('/api/sftp/read', requireAuth, async (req, res) => {
+  const { serverId, path: filePath } = req.query;
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) return res.status(404).json({ success: false, message: '服务器不存在' });
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+    if (server.authType === 'password' && server.password) sshConfig.password = server.password;
+    else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+
+    const conn = new Client();
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+        sftp.readFile(filePath, (err, data) => {
+          if (err) {
+            res.status(500).json({ success: false, message: '读取文件失败: ' + err.message });
+          } else {
+            res.json({ success: true, content: data.toString('utf8') });
+          }
+          conn.end();
+        });
+      });
+    });
+    conn.on('error', (err) => res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message }));
+    conn.connect(sshConfig);
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
 // WebSocket SSH 连接
-wss.on('connection', (ws, req) => {
+wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
 
   ws.on('message', (data) => {
     try {
       const message = JSON.parse(data);
-      
+
       if (message.type === 'connect') {
+        const token = message.token;
+        if (!token || !sessions.has(token)) {
+          ws.send(JSON.stringify({ type: 'error', message: '未授权访问' }));
+          ws.close();
+          return;
+        }
+
+        const session = sessions.get(token);
+        session.lastActive = Date.now();
+        sessions.set(token, session);
+
         const server = config.servers.find(s => s.id === message.serverId);
         if (!server) {
           ws.send(JSON.stringify({ type: 'error', message: '服务器不存在' }));
@@ -496,7 +687,8 @@ wss.on('connection', (ws, req) => {
         const sshConfig = {
           host: server.host,
           port: server.port || 22,
-          username: server.username
+          username: server.username,
+          readyTimeout: 10000
         };
 
         if (server.authType === 'password' && server.password) {
@@ -509,6 +701,7 @@ wss.on('connection', (ws, req) => {
       }
     } catch (error) {
       console.log('WebSocket message error:', error.message);
+      try { ws.send(JSON.stringify({ type: 'error', message: '消息处理失败: ' + error.message })); } catch (_) {}
     }
   });
 });
@@ -586,6 +779,17 @@ function saveConfig() {
     console.log('保存配置文件失败:', error.message);
   }
 }
+
+// 会话清理（每小时清理一次过期会话）
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (now - session.lastActive > 3600000) { // 1小时
+      sessions.delete(token);
+      console.log('清理过期会话:', token);
+    }
+  }
+}, 3600000); // 每小时清理一次
 
 const PORT = config.port || 3000;
 server.listen(PORT, () => {

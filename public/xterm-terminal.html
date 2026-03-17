@@ -2,311 +2,214 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>WebSSH - xterm.js 终端</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebSSH - 终端</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.3.0/css/xterm.css" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      background: #000;
-      height: 100vh;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-    
-    .terminal-container {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-    }
-    
-    #terminal {
-      width: 100%;
-      height: 100%;
-      padding: 10px;
-    }
-    
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { background:#000; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; height:100vh; overflow:hidden; }
     .status-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: rgba(51, 51, 51, 0.9);
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      backdrop-filter: blur(5px);
-      z-index: 1000;
-      border-bottom: 1px solid #666;
+      position:fixed; top:0; left:0; right:0; z-index:20;
+      background:rgba(17,24,39,.92); border-bottom:1px solid rgba(255,255,255,.12);
+      padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px;
     }
-    
-    .server-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .server-info { min-width:0; }
+    .server-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .server-details { font-size:12px; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+    .chip { font-size:12px; padding:4px 8px; border-radius:999px; }
+    .connecting { background:#92400e; color:#fde68a; }
+    .connected { background:#065f46; color:#a7f3d0; }
+    .disconnected { background:#7f1d1d; color:#fecaca; }
+    .btn { border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#fff; border-radius:8px; padding:7px 10px; cursor:pointer; }
+    .btn:hover { background:rgba(255,255,255,.14); }
+    #terminalWrap { position:absolute; inset:56px 0 0 0; padding:8px; }
+    #terminal { width:100%; height:100%; }
+    .overlay {
+      position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.7);
+      display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px;
     }
-    
-    .connection-status {
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-    
-    .status-connecting { background: #ed8936; color: white; }
-    .status-connected { background: #48bb78; color: white; }
-    .status-disconnected { background: #f56565; color: white; }
-    
-    .connection-actions {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .action-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 11px;
-      transition: all 0.2s;
-    }
-    
-    .action-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: white;
-      font-size: 16px;
-      z-index: 2000;
+    @media (max-width: 768px) {
+      .status-bar { padding:8px 10px; flex-wrap:wrap; align-items:flex-start; }
+      .server-info { width:100%; }
+      .actions { width:100%; justify-content:space-between; }
+      .btn { padding:8px 10px; font-size:12px; }
+      #terminalWrap { inset:90px 0 0 0; padding:4px; }
     }
   </style>
 </head>
 <body>
-  <div class="status-bar" id="statusBar">
+  <div class="status-bar">
     <div class="server-info">
-      <span id="serverName">正在连接...</span>
-      <span id="serverDetails"></span>
+      <div id="serverName" class="server-name">正在准备终端...</div>
+      <div id="serverDetails" class="server-details"></div>
     </div>
-    <div class="connection-actions">
-      <span class="connection-status status-connecting" id="connectionStatus">连接中</span>
-      <button class="action-btn" onclick="reconnect()" id="reconnectBtn" style="display: none;">重连</button>
-      <button class="action-btn" onclick="closeTerminal()">关闭</button>
+    <div class="actions">
+      <span id="connectionStatus" class="chip connecting">连接中</span>
+      <button class="btn" id="reconnectBtn" onclick="reconnect()" style="display:none;">重连</button>
+      <button class="btn" onclick="history.back()">返回</button>
     </div>
   </div>
-  
-  <div class="terminal-container">
-    <div id="terminal"></div>
-  </div>
-  
-  <div class="loading-overlay" id="loadingOverlay">
-    <div>正在连接 SSH 服务器...</div>
-  </div>
+  <div id="terminalWrap"><div id="terminal"></div></div>
+  <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.8.0/lib/addon-fit.js"></script>
   <script>
-    // 初始化 xterm.js
-    const term = new Terminal({
-      theme: {
-        background: '#000000',
-        foreground: '#00ff00',
-        cursor: '#00ff00',
-        cursorAccent: '#000000',
-        selection: '#ffffff40',
-        black: '#000000',
-        red: '#ff5555',
-        green: '#55ff55',
-        yellow: '#ffff55',
-        blue: '#5555ff',
-        magenta: '#ff55ff',
-        cyan: '#55ffff',
-        white: '#ffffff',
-        brightBlack: '#555555',
-        brightRed: '#ff5555',
-        brightGreen: '#55ff55',
-        brightYellow: '#ffff55',
-        brightBlue: '#5555ff',
-        brightMagenta: '#ff55ff',
-        brightCyan: '#55ffff',
-        brightWhite: '#ffffff'
-      },
-      fontSize: 14,
-      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace',
-      cursorBlink: true,
-      allowTransparency: true,
-      cols: 80,
-      rows: 24
-    });
-
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
-    
-    const statusBar = document.getElementById('statusBar');
-    const serverName = document.getElementById('serverName');
-    const serverDetails = document.getElementById('serverDetails');
-    const connectionStatus = document.getElementById('connectionStatus');
+    const authToken = localStorage.getItem('webssh_token');
+    const urlParams = new URLSearchParams(location.search);
+    const serverId = urlParams.get('server');
+    const serverNameEl = document.getElementById('serverName');
+    const serverDetailsEl = document.getElementById('serverDetails');
+    const statusEl = document.getElementById('connectionStatus');
     const reconnectBtn = document.getElementById('reconnectBtn');
     const loadingOverlay = document.getElementById('loadingOverlay');
-    
     let ws = null;
     let currentServer = null;
 
-    // 获取URL参数
-    const urlParams = new URLSearchParams(window.location.search);
-    const serverId = urlParams.get('server');
-    
-    if (!serverId) {
-      term.write('错误：未指定服务器ID\r\n');
-      hideLoading();
-      return;
-    }
-
-    // 初始化终端
+    const term = new Terminal({
+      theme: {
+        background: '#000000', foreground: '#d1fae5', cursor: '#10b981', cursorAccent: '#000000', selection: '#ffffff30'
+      },
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, Consolas, monospace',
+      cursorBlink: true,
+      convertEol: false,
+      scrollback: 5000
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
-    
-    // 监听窗口大小变化
+
     window.addEventListener('resize', () => {
       fitAddon.fit();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      }
     });
 
-    // 获取服务器信息
+    function showLoading(text = '正在连接 SSH 服务器...') { loadingOverlay.textContent = text; loadingOverlay.style.display = 'flex'; }
+    function hideLoading() { loadingOverlay.style.display = 'none'; }
+    function updateStatus(state, text) {
+      statusEl.className = `chip ${state}`;
+      statusEl.textContent = text;
+    }
+
+    async function authFetch(url, options = {}) {
+      if (!authToken) {
+        alert('登录已失效，请重新登录');
+        location.href = '/login.html';
+        throw new Error('未登录');
+      }
+      const res = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${authToken}` } });
+      if (res.status === 401) {
+        localStorage.removeItem('webssh_token');
+        alert('登录已失效，请重新登录');
+        location.href = '/login.html';
+        throw new Error('未授权');
+      }
+      return res;
+    }
+
     async function getServerInfo() {
+      if (!serverId) {
+        term.write('错误：未指定服务器ID\r\n');
+        updateStatus('disconnected', '参数错误');
+        hideLoading();
+        return;
+      }
       try {
-        const response = await fetch('/api/servers');
+        const response = await authFetch('/api/servers');
         const servers = await response.json();
-        const server = servers.find(s => s.id == serverId);
-        
-        if (server) {
-          currentServer = server;
-          serverName.textContent = server.name;
-          serverDetails.textContent = `${server.username}@${server.host}:${server.port}`;
-          connectWebSocket();
-        } else {
+        currentServer = servers.find(s => String(s.id) === String(serverId));
+        if (!currentServer) {
           term.write('错误：服务器不存在\r\n');
+          updateStatus('disconnected', '服务器不存在');
           hideLoading();
+          return;
         }
+        serverNameEl.textContent = currentServer.name;
+        serverDetailsEl.textContent = `${currentServer.username}@${currentServer.host}:${currentServer.port || 22}`;
+        connectWebSocket();
       } catch (error) {
-        term.write('获取服务器信息失败\r\n');
+        term.write(`获取服务器信息失败: ${error.message}\r\n`);
+        updateStatus('disconnected', '加载失败');
         hideLoading();
       }
     }
 
     function connectWebSocket() {
-      ws = new WebSocket(`ws://${location.host}`);
+      updateStatus('connecting', '连接中');
+      showLoading('正在建立 WebSocket 与 SSH 连接...');
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
 
       ws.onopen = () => {
-        updateStatus('connected', '已连接');
         reconnectBtn.style.display = 'none';
-        
-        // 发送连接请求
         ws.send(JSON.stringify({
           type: 'connect',
-          serverId: parseInt(currentServer.id)
+          token: authToken,
+          serverId: parseInt(currentServer.id, 10),
+          cols: term.cols,
+          rows: term.rows
         }));
-        
         term.focus();
-        hideLoading();
-      }
+      };
 
       ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case 'data':
-              term.write(message.data);
-              break;
-            case 'connected':
-              term.write('\r\n*** ' + message.message + ' ***\r\n');
-              break;
-            case 'error':
-              term.write('\r\n*** 错误: ' + message.message + ' ***\r\n');
-              updateStatus('disconnected', '连接错误');
-              reconnectBtn.style.display = 'block';
-              break;
-            case 'close':
-              term.write('\r\n*** ' + message.message + ' ***\r\n');
-              updateStatus('disconnected', '已断开');
-              reconnectBtn.style.display = 'block';
-              break;
-          }
-        } catch (e) {
-          // 如果不是JSON，直接显示
-          term.write(event.data);
+        let message;
+        try { message = JSON.parse(event.data); } catch { term.write(event.data); return; }
+        switch (message.type) {
+          case 'connected':
+            updateStatus('connected', '已连接');
+            hideLoading();
+            term.write(`\r\n*** ${message.message} ***\r\n`);
+            break;
+          case 'data':
+            term.write(message.data || '');
+            break;
+          case 'error':
+            updateStatus('disconnected', '连接错误');
+            reconnectBtn.style.display = 'inline-block';
+            hideLoading();
+            term.write(`\r\n*** 错误: ${message.message} ***\r\n`);
+            break;
+          case 'close':
+            updateStatus('disconnected', '已断开');
+            reconnectBtn.style.display = 'inline-block';
+            hideLoading();
+            term.write(`\r\n*** ${message.message} ***\r\n`);
+            break;
         }
       };
 
       ws.onclose = () => {
         updateStatus('disconnected', '已断开');
-        reconnectBtn.style.display = 'block';
-        term.write('\r\n*** WebSocket连接已关闭 ***\r\n');
+        reconnectBtn.style.display = 'inline-block';
+        hideLoading();
       };
 
-      ws.onerror = (error) => {
+      ws.onerror = () => {
         updateStatus('disconnected', '连接错误');
-        reconnectBtn.style.display = 'block';
-        term.write('\r\n*** WebSocket连接错误 ***\r\n');
-        term.write('\r\n*** 这可能是因为服务器配置问题或网络连接问题 ***\r\n');
-        term.write('\r\n*** 请检查服务器配置并确保服务器可达 ***\r\n');
+        reconnectBtn.style.display = 'inline-block';
         hideLoading();
+        term.write('\r\n*** WebSocket 连接错误 ***\r\n');
       };
     }
 
-    // 键盘输入处理
     term.onData((data) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'input',
-          data: data
-        }));
+        ws.send(JSON.stringify({ type: 'input', data }));
       }
     });
 
-    function updateStatus(status, text) {
-      connectionStatus.className = `connection-status status-${status}`;
-      connectionStatus.textContent = text;
-    }
-
     function reconnect() {
-      showLoading();
-      if (ws) {
-        ws.close();
-      }
+      if (ws) try { ws.close(); } catch (_) {}
+      term.write('\r\n*** 正在重连... ***\r\n');
       connectWebSocket();
     }
 
-    function closeTerminal() {
-      if (ws) {
-        ws.close();
-      }
-      window.close();
-    }
-
-    function showLoading() {
-      loadingOverlay.style.display = 'flex';
-    }
-
-    function hideLoading() {
-      loadingOverlay.style.display = 'none';
-    }
-
-    // 初始化
     showLoading();
     getServerInfo();
   </script>
