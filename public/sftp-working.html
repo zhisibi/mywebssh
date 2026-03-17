@@ -384,7 +384,7 @@
           <table class="file-table">
             <thead>
               <tr>
-                <th>名称</th>
+                <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"> 名称</th>
                 <th>类型</th>
                 <th>大小</th>
                 <th>修改时间</th>
@@ -394,8 +394,9 @@
               ${files.map(file => `
                 <tr>
                   <td>
-                    <div class="file-name" onclick="handleFileClick('${file.name}')">
-                      ${file.type === 'directory' ? '📁' : '📄'} ${file.name}
+                    <input type="checkbox" class="file-checkbox" data-path="${currentPath === '/' ? '/' + file.name : currentPath + '/' + file.name}" style="margin-right: 8px;" ${file.type === 'directory' ? 'disabled' : ''}>
+                    <div class="file-name" onclick="handleFileClick('${file.name}', ${file.type === 'directory'})" oncontextmenu="showFileMenu(event, '${file.name}', ${file.type === 'directory'})">
+                      ${file.type === 'directory' ? '📁' : file.type === 'link' ? '🔗' : '📄'} ${file.name}
                     </div>
                   </td>
                   <td>
@@ -417,17 +418,21 @@
       `;
     }
 
-    function handleFileClick(filename) {
+    function handleFileClick(filename, isDirectory = false) {
       if (filename === '..') {
         // 返回上级目录
         const pathParts = currentPath.split('/').filter(p => p);
         pathParts.pop();
         currentPath = '/' + pathParts.join('/');
-      } else {
-        // 进入子目录或处理文件
+      } else if (isDirectory) {
+        // 进入子目录
         currentPath = currentPath === '/' ? 
           '/' + filename : 
           currentPath + '/' + filename;
+      } else {
+        // 文件点击 - 直接下载文件
+        downloadFile(filename);
+        return;
       }
       
       updateBreadcrumb();
@@ -466,7 +471,7 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function uploadFile() {
+    async function uploadFile() {
       if (!currentServer) {
         alert('请先选择一个服务器');
         return;
@@ -480,18 +485,54 @@
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
         
-        alert(`准备上传 ${files.length} 个文件到 ${currentPath}\n\n注意：上传功能需要后端API支持，目前处于演示模式。`);
-        
-        // 这里可以添加实际上传逻辑
-        // for (const file of files) {
-        //   await uploadFileToServer(file, currentPath);
-        // }
-        // refreshList();
+        try {
+          for (const file of files) {
+            const content = await readFileAsBase64(file);
+            
+            const response = await fetch('/api/sftp/upload', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                serverId: currentServer.id,
+                path: currentPath,
+                filename: file.name,
+                content: content
+              })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+              alert(`上传文件 ${file.name} 失败: ${result.message}`);
+              return;
+            }
+          }
+          
+          alert('文件上传成功！');
+          refreshList();
+          
+        } catch (error) {
+          console.error('上传文件错误:', error);
+          alert('上传文件失败，请检查网络连接');
+        }
       };
       input.click();
     }
 
-    function createFolder() {
+    // 读取文件为Base64
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result.split(',')[1]); // 移除 data:application/octet-stream;base64, 前缀
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function createFolder() {
       if (!currentServer) {
         alert('请先选择一个服务器');
         return;
@@ -500,15 +541,133 @@
       const folderName = prompt('请输入文件夹名称：');
       if (!folderName) return;
       
-      alert(`将在 ${currentPath} 创建文件夹: ${folderName}\n\n注意：创建文件夹功能需要后端API支持，目前处于演示模式。`);
-      
-      // 这里可以添加实际创建文件夹逻辑
-      // await createFolderOnServer(folderName, currentPath);
-      // refreshList();
+      try {
+        const response = await fetch('/api/sftp/mkdir', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            serverId: currentServer.id,
+            path: currentPath,
+            dirname: folderName
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('文件夹创建成功！');
+          refreshList();
+        } else {
+          alert(`创建文件夹失败: ${result.message}`);
+        }
+        
+      } catch (error) {
+        console.error('创建文件夹错误:', error);
+        alert('创建文件夹失败，请检查网络连接');
+      }
     }
 
-    function downloadFile() {
-      alert('下载功能开发中...\n\n需要选择文件后下载，后续版本将实现。');
+    let selectedFile = null;
+
+    function downloadFile(filename = null) {
+      const fileToDownload = filename || selectedFile;
+      
+      if (!fileToDownload) {
+        alert('请先选择要下载的文件');
+        return;
+      }
+      
+      if (!currentServer) {
+        alert('请先选择一个服务器');
+        return;
+      }
+
+      const filePath = currentPath === '/' ? 
+        `/${fileToDownload}` : 
+        `${currentPath}/${fileToDownload}`;
+
+      // 直接下载文件
+      const downloadUrl = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(filePath)}`;
+      
+      // 创建隐藏的链接进行下载
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileToDownload;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function showFileMenu(event, filename, isDirectory) {
+      event.preventDefault();
+      selectedFile = filename;
+      
+      // 创建简单的右键菜单
+      const menu = document.createElement('div');
+      menu.style.position = 'absolute';
+      menu.style.left = event.pageX + 'px';
+      menu.style.top = event.pageY + 'px';
+      menu.style.background = 'white';
+      menu.style.border = '1px solid #ccc';
+      menu.style.padding = '5px';
+      menu.style.borderRadius = '4px';
+      menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      menu.style.zIndex = '1000';
+      
+      menu.innerHTML = `
+        <div style="padding: 5px; cursor: pointer;" onclick="downloadFile()">📥 下载</div>
+        ${isDirectory ? '' : '<div style="padding: 5px; cursor: pointer;" onclick="deleteSelectedFile()">🗑️ 删除</div>'}
+      `;
+      
+      document.body.appendChild(menu);
+      
+      // 点击其他地方关闭菜单
+      const closeMenu = () => {
+        document.body.removeChild(menu);
+        document.removeEventListener('click', closeMenu);
+      };
+      
+      setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+      }, 100);
+    }
+
+    function deleteSelectedFile() {
+      if (!selectedFile) return;
+      
+      if (!confirm(`确定要删除文件 "${selectedFile}" 吗？此操作不可恢复。`)) {
+        return;
+      }
+      
+      const filePath = currentPath === '/' ? 
+        `/${selectedFile}` : 
+        `${currentPath}/${selectedFile}`;
+
+      fetch('/api/sftp/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          serverId: currentServer.id,
+          path: filePath,
+          isDirectory: false
+        })
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          alert('文件删除成功');
+          refreshList();
+        } else {
+          alert('删除文件失败: ' + result.message);
+        }
+      })
+      .catch(error => {
+        console.error('删除文件错误:', error);
+        alert('网络错误，请重试');
+      });
     }
 
     function refreshList() {

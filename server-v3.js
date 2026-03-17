@@ -67,8 +67,152 @@ app.delete('/api/servers/:id', (req, res) => {
 });
 
 // SFTP API (开发中)
-app.get('/api/sftp/list', (req, res) => {
-  res.json({ success: false, message: 'SFTP功能开发中' });
+// SFTP 文件下载
+app.get('/api/sftp/download', async (req, res) => {
+  const { serverId, path: filePath } = req.query;
+  
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, message: '服务器不存在' });
+    }
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+
+    if (server.authType === 'password' && server.password) {
+      sshConfig.password = server.password;
+    } else if (server.authType === 'key' && server.privateKey) {
+      sshConfig.privateKey = server.privateKey;
+    }
+
+    const conn = new Client();
+    
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        // 先检查文件是否存在和是否为目录
+        sftp.stat(filePath, (err, stats) => {
+          if (err) {
+            res.status(404).json({ success: false, message: '文件不存在: ' + err.message });
+            conn.end();
+            return;
+          }
+
+          if (stats.isDirectory()) {
+            res.status(400).json({ success: false, message: '不能下载目录' });
+            conn.end();
+            return;
+          }
+
+          sftp.readFile(filePath, (err, data) => {
+            if (err) {
+              res.status(500).json({ success: false, message: '读取文件错误: ' + err.message });
+            } else {
+              // 获取文件名
+              const filename = filePath.split('/').pop();
+              
+              res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(filename)}\"`);
+              res.setHeader('Content-Type', 'application/octet-stream');
+              res.send(data);
+            }
+            conn.end();
+          });
+        });
+      });
+    });
+
+    conn.on('error', (err) => {
+      res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message });
+    });
+
+    conn.connect(sshConfig);
+    
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
+});
+
+app.get('/api/sftp/list', async (req, res) => {
+  const { serverId, path: remotePath = '/' } = req.query;
+  
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, message: '服务器不存在' });
+    }
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+
+    if (server.authType === 'password' && server.password) {
+      sshConfig.password = server.password;
+    } else if (server.authType === 'key' && server.privateKey) {
+      sshConfig.privateKey = server.privateKey;
+    }
+
+    const conn = new Client();
+    
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        sftp.readdir(remotePath, (err, list) => {
+          if (err) {
+            res.status(500).json({ success: false, message: '读取目录错误: ' + err.message });
+          } else {
+            const files = list.map(item => {
+              // 正确的文件类型检测
+              let type = 'file';
+              if (item.attrs.isDirectory) {
+                type = 'directory';
+              } else if (item.longname && item.longname.startsWith('l')) {
+                type = 'link';
+              }
+              
+              return {
+                name: item.filename,
+                longname: item.longname,
+                type: type,
+                size: item.attrs.size,
+                mode: item.attrs.mode.toString(8),
+                mtime: item.attrs.mtime,
+                atime: item.attrs.atime
+              };
+            });
+            res.json({ success: true, path: remotePath, files });
+          }
+          conn.end();
+        });
+      });
+    });
+
+    conn.on('error', (err) => {
+      res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message });
+    });
+
+    conn.connect(sshConfig);
+    
+  } catch (error) {
+    res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+  }
 });
 
 // WebSocket SSH 连接
