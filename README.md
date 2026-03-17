@@ -2,90 +2,132 @@
 
 基于 Node.js + Express + WebSocket + SSH2 的轻量级 Web SSH 管理工具。
 
-## 当前入口
+## 快速开始
 
-- 服务端主文件：`server-v3.js`
-- 启动命令：`npm start`
-- 默认地址：`http://localhost:3000`
-- SFTP 浏览器：`http://localhost:3000/sftp-browser.html`
-- xterm 终端：`http://localhost:3000/xterm-terminal.html`
-
-## 已实现功能
-
-### SSH / 终端
-- WebSocket SSH 终端连接
-- xterm.js 终端页面
-- 基础输入/输出与连接状态提示
-
-### 服务器管理
-- 管理员登录
-- 基于 token 的接口认证
-- 服务器列表读取
-- 新增 / 编辑 / 删除服务器配置
-
-### SFTP 文件管理
-- 按服务器维度的文件浏览（从控制面板直达指定服务器）
-- 目录浏览与面包屑导航
-- 文件/目录类型识别
-- 上传文件
-- 新建文件夹
-- 单文件下载
-- 批量下载 ZIP
-- 文件预览（文本）
-- 重命名
-- 删除文件
-- 递归删除目录
-- 基础移动端适配（顶部工具栏折行、表格横向滚动）
-
-## 启动
+### 安装依赖
 
 ```bash
 npm install
+```
+
+### 启动服务
+
+```bash
 npm start
 ```
 
-## 登录
+服务将运行在：`http://localhost:3000`
 
-默认管理员账号：
+首次打开会自动跳转到登录页，使用默认账号登录即可：
+- 用户名：`admin`
+- 密码：`admin123`
 
-```txt
-admin / admin123
-```
+## 核心功能
 
-登录后前端会自动保存 token 到浏览器本地存储。
+### 服务器管理（控制面板）
+
+- **入口**：登录后自动进入控制面板 `/dashboard.html`
+- **功能**：
+  - 查看所有服务器
+  - 新增服务器
+  - 编辑服务器配置
+  - 删除服务器
+- **操作**：
+  - 点“SSH” → 进入终端会话
+  - 点“SFTP” → 进入该服务器的文件管理（单服务器直达视图）
+
+### SSH 终端
+
+- **入口**：从控制面板点某个服务器的“SSH”按钮
+- **技术栈**：xterm.js + WebSocket + SSH2
+- **特点**：
+  - 自动根据服务器配置建立 SSH 连接
+  - 基础输入/输出
+  - 连接状态显示（连接中 / 已连接 / 已断开）
+- **注意**：首次使用时请确保服务器网络可达
+
+### SFTP 文件浏览器
+
+- **入口**：从控制面板点某个服务器的“SFTP”按钮
+- **特点**：
+  - **单服务器直达视图**：从控制面板选好服务器，直接进入该服务器的文件列表，无需二次选择
+  - 目录浏览与面包屑导航
+  - 文件类型识别（目录 / 文件 / 符号链接）
+  - 上传文件
+  - 新建文件夹
+  - 单文件下载
+  - 批量下载 ZIP
+  - 文件预览（文本文件）
+  - 重命名
+  - 删除文件
+  - 递归删除目录
+- **移动端适配**：
+  - 顶部工具栏在小屏幕下自动折行
+  - 表格可横向滚动
+  - 左侧服务器列表默认隐藏（可按需展开）
 
 ## 主要 API
 
 ### 认证
-- `POST /api/login`
-- `POST /api/logout`
+- `POST /api/login` - 登录，返回 token
+- `POST /api/logout` - 登出
 
-### 服务器
-- `GET /api/servers`
-- `POST /api/servers`
-- `PUT /api/servers/:id`
-- `DELETE /api/servers/:id`
+### 服务器管理
+- `GET /api/servers` - 获取服务器列表（需要 token）
+- `POST /api/servers` - 新增服务器（需要 token）
+- `PUT /api/servers/:id` - 编辑服务器（需要 token）
+- `DELETE /api/servers/:id` - 删除服务器（需要 token）
 
-### SFTP
-- `GET /api/sftp/list`
-- `POST /api/sftp/upload`
-- `POST /api/sftp/mkdir`
-- `GET /api/sftp/download`
-- `POST /api/sftp/download-batch`
-- `GET /api/sftp/read`
-- `POST /api/sftp/rename`
-- `POST /api/sftp/delete`
+### SFTP 文件操作（均需要 token）
+- `GET /api/sftp/list` - 列出目录内容
+- `POST /api/sftp/upload` - 上传文件
+- `POST /api/sftp/mkdir` - 新建文件夹
+- `GET /api/sftp/download` - 下载单个文件
+- `POST /api/sftp/download-batch` - 批量下载 ZIP
+- `GET /api/sftp/read` - 读取文本文件内容
+- `POST /api/sftp/rename` - 重命名
+- `POST /api/sftp/delete` - 删除文件或目录
 
-## 当前已知待优化项
+## 典型使用流程
 
-- WebSocket SSH 连接尚未接入 token 鉴权
-- 管理员密码仍是配置文件明文
-- 暂无文件在线编辑保存
-- 暂无复制/移动/权限修改
-- 暂无拖拽上传与上传进度
-- 暂无服务器管理前端页面
+### 1. 登录
+访问 `http://localhost:3000`，使用 `admin / admin123` 登录
+
+### 2. 添加服务器
+在控制面板点击“添加服务器”，填写服务器信息（主机、端口、用户名、认证方式等）
+
+### 3. 使用 SFTP 文件管理
+- 在控制面板点击某个服务器的“SFTP”按钮
+- 自动进入该服务器的文件列表
+- 支持浏览目录、上传/下载、重命名、删除等操作
+
+### 4. 使用 SSH 终端
+- 在控制面板点击某个服务器的“SSH”按钮
+- 进入终端会话
+- 可正常执行命令
+
+## 配置说明
+
+项目使用 `config.json` 存储配置：
+- `admin`: 管理员账号信息
+- `servers`: 服务器配置列表
+- `port`: 服务运行端口（默认 3000）
+
+注意：当前配置文件中的密码为明文存储，建议在生产环境中自行实现加密机制。
+
+## 待优化项
+
+- WebSocket SSH 连接的详细状态提示和错误处理（当前已加入日志，便于调试）
+- 管理员密码的安全存储机制
+- 文件在线编辑并保存
+- 复制/移动文件和目录
+- 文件/目录权限修改
+- 拖拽上传和上传进度显示
+- 更完善的移动端适配
+- 多会话支持
 
 ## 技术栈
 
-- 后端：Node.js + Express + WebSocket + SSH2 + archiver
-- 前端：原生 HTML / CSS / JavaScript
+- **后端**：Node.js + Express + WebSocket + SSH2 + archiver
+- **前端**：原生 HTML / CSS / JavaScript（无框架依赖）
+- **终端**：xterm.js
