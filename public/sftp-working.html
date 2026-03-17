@@ -371,73 +371,123 @@
       }
     }
 
-    function displayFileList(files) {
-      const fileList = document.getElementById('fileList');
-      
-      if (files.length === 0) {
-        fileList.innerHTML = '<div class="loading">目录为空</div>';
-        return;
-      }
-      
-      fileList.innerHTML = `
-        <div class="file-table-container">
-          <table class="file-table">
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"> 名称</th>
-                <th>类型</th>
-                <th>大小</th>
-                <th>修改时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${files.map(file => `
-                <tr>
-                  <td>
-                    <input type="checkbox" class="file-checkbox" data-path="${currentPath === '/' ? '/' + file.name : currentPath + '/' + file.name}" style="margin-right: 8px;" ${file.type === 'directory' ? 'disabled' : ''}>
-                    <div class="file-name" onclick="handleFileClick('${file.name}', ${file.type === 'directory'})" oncontextmenu="showFileMenu(event, '${file.name}', ${file.type === 'directory'})">
-                      ${file.type === 'directory' ? '📁' : file.type === 'link' ? '🔗' : '📄'} ${file.name}
-                    </div>
-                  </td>
-                  <td>
-                    <span class="file-type ${file.type}">
-                      ${file.type === 'directory' ? '目录' : '文件'}
-                    </span>
-                  </td>
-                  <td class="file-size">
-                    ${file.type === 'directory' ? '-' : formatFileSize(file.size)}
-                  </td>
-                  <td class="file-size">
-                    ${new Date(file.mtime * 1000).toLocaleString()}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
 
-    function handleFileClick(filename, isDirectory = false) {
-      if (filename === '..') {
-        // 返回上级目录
-        const pathParts = currentPath.split('/').filter(p => p);
-        pathParts.pop();
-        currentPath = '/' + pathParts.join('/');
-      } else if (isDirectory) {
-        // 进入子目录
-        currentPath = currentPath === '/' ? 
-          '/' + filename : 
-          currentPath + '/' + filename;
-      } else {
-        // 文件点击 - 直接下载文件
-        downloadFile(filename);
-        return;
-      }
-      
-      updateBreadcrumb();
-      loadFileList();
-    }
+	    function displayFileList(files) {
+	  const fileList = document.getElementById('fileList');
+	  
+	  if (files.length === 0) {
+	    fileList.innerHTML = '<div class="loading">目录为空</div>';
+	    return;
+	  }
+	  
+	  fileList.innerHTML = `
+	    <div class="file-table-container">
+	      <table class="file-table">
+	        <thead>
+	          <tr>
+	            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"> 名称</th>
+	            <th>类型</th>
+	            <th>大小</th>
+	            <th>修改时间</th>
+	          </tr>
+	        </thead>
+	        <tbody>
+	          ${files.map(file => {
+	            // 文件类型兜底判断
+	            const ext = file.name.toLowerCase().split('.').pop();
+	            const looksLikeFile = ['txt','log','md','pdf','doc','docx','xls','xlsx','ppt','pptx',
+	                                 'png','jpg','jpeg','gif','zip','rar','7z','tar','gz','mp4','mp3',
+	                                 'html','css','js','json','xml','yml','yaml','ini','conf','sh','bat',
+	                                 'mov','avi','wmv','flv','webm','m4a','wav','ogg','flac','aac']
+	              .includes(ext);
+	            const isDir = (file.type === 'directory') && !looksLikeFile;
+	            
+	            const icon = isDir ? '📁' : (file.type === 'link' ? '🔗' : '📄');
+	            const typeText = isDir ? '目录' : '文件';
+	            const sizeText = isDir ? '-' : formatFileSize(file.size);
+	            
+	            const filePath = currentPath === '/' 
+	              ? '/' + file.name 
+	              : currentPath + '/' + file.name;
+	            
+	            return `
+	              <tr>
+	                <td>
+	                  <input type="checkbox" class="file-checkbox" data-path="${filePath}" style="margin-right: 8px;" ${isDir ? 'disabled' : ''}>
+	                  <div class="file-name" onclick="handleFileClick('${file.name}', ${isDir})" oncontextmenu="showFileMenu(event, '${file.name}', ${isDir})">
+	                    ${icon} ${file.name}
+	                  </div>
+	                </td>
+	                <td>
+	                  <span class="file-type ${isDir ? 'directory' : 'file'}">
+	                    ${typeText}
+	                  </span>
+	                </td>
+	                <td class="file-size">
+	                  ${sizeText}
+	                </td>
+	                <td class="file-size">
+	                  ${new Date(file.mtime * 1000).toLocaleString()}
+	                </td>
+	              </tr>
+	            `;
+	          }).join('')}
+	        </tbody>
+	      </table>
+	    </div>
+	  `;
+	}
+
+
+//    function handleFileClick(filename, isDirectory = false) {
+//      if (filename === '..') {
+//        // 返回上级目录
+//        const pathParts = currentPath.split('/').filter(p => p);
+//        pathParts.pop();
+//        currentPath = '/' + pathParts.join('/');
+//      } else if (isDirectory) {
+//        // 进入子目录
+//        currentPath = currentPath === '/' ? 
+//          '/' + filename : 
+//          currentPath + '/' + filename;
+//      } else {
+//        // 文件点击 - 直接下载文件
+//        downloadFile(filename);
+//        return;
+//      }
+//      
+//      updateBreadcrumb();
+//      loadFileList();
+//    }
+	function handleFileClick(filename, isDirectory = false) {
+	  console.log('handleFileClick called:', filename, 'isDirectory:', isDirectory);
+	  
+	  if (filename === '..') {
+	    // 返回上级目录
+	    const pathParts = currentPath.split('/').filter(p => p);
+	    pathParts.pop();
+	    currentPath = '/' + pathParts.join('/');
+	    updateBreadcrumb();
+	    loadFileList();
+	    return;
+	  }
+	
+	  if (isDirectory) {
+	    console.log('Entering directory:', filename);
+	    // 进入子目录
+	    currentPath = currentPath === '/'
+	      ? '/' + filename
+	      : currentPath + '/' + filename;
+	    updateBreadcrumb();
+	    loadFileList();
+	  } else {
+	    console.log('Downloading file:', filename);
+	    // 文件：直接下载，不再调用 loadFileList()
+	    downloadFile(filename);
+	  }
+	}
+
+
 
     function updateBreadcrumb() {
       const breadcrumb = document.getElementById('breadcrumb');
@@ -470,6 +520,61 @@
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+ //新加
+
+
+
+  // 打包下载文件或目录为 ZIP
+  function downloadAsZip(targetPath) {
+    if (!currentServer) {
+      alert('请先选择一个服务器');
+      return;
+    }
+
+    fetch('/api/sftp/download-batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        serverId: currentServer.id,
+        paths: [targetPath]   // 后端是支持多个，这里只传一个目录或文件
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        // 尝试解析后端返回的 JSON 错误信息
+        return response.json()
+          .then(err => { throw new Error(err.message || ('HTTP ' + response.status)); })
+          .catch(() => { throw new Error('下载失败，HTTP 状态: ' + response.status); });
+      }
+      return response.blob();
+    })
+    .then(blob => {
+      // 构造下载链接
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+
+      // 从路径中取一个名字当 zip 文件名
+      const parts = targetPath.split('/').filter(Boolean);
+      const baseName = parts.length ? parts[parts.length - 1] : 'download';
+
+      a.href = url;
+      a.download = baseName + '.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      console.error('打包下载失败:', err);
+      alert('打包下载失败: ' + err.message);
+    });
+  }
+
+  // 新加
+
+   
 
     async function uploadFile() {
       if (!currentServer) {
@@ -569,69 +674,159 @@
     }
 
     let selectedFile = null;
+//
+//    function downloadFile(filename = null) {
+//      const fileToDownload = filename || selectedFile;
+//      
+//      if (!fileToDownload) {
+//        alert('请先选择要下载的文件');
+//        return;
+//      }
+//      
+//      if (!currentServer) {
+//        alert('请先选择一个服务器');
+//        return;
+//      }
+//
+//      const filePath = currentPath === '/' ? 
+//        `/${fileToDownload}` : 
+//        `${currentPath}/${fileToDownload}`;
+//
+//      // 直接下载文件
+//      const downloadUrl = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(filePath)}`;
+//      
+//      // 创建隐藏的链接进行下载
+//      const link = document.createElement('a');
+//      link.href = downloadUrl;
+//      link.download = fileToDownload;
+//      document.body.appendChild(link);
+//      link.click();
+//      document.body.removeChild(link);
+//    }
+//改
+function downloadFile(filename = null) {
+  const fileToDownload = filename || selectedFile;
+  
+  if (!fileToDownload) {
+    alert('请先选择要下载的文件');
+    return;
+  }
+  
+  if (!currentServer) {
+    alert('请先选择一个服务器');
+    return;
+  }
 
-    function downloadFile(filename = null) {
-      const fileToDownload = filename || selectedFile;
-      
-      if (!fileToDownload) {
-        alert('请先选择要下载的文件');
-        return;
-      }
-      
-      if (!currentServer) {
-        alert('请先选择一个服务器');
-        return;
-      }
+  const filePath = currentPath === '/'
+    ? '/' + fileToDownload
+    : currentPath + '/' + fileToDownload;
 
-      const filePath = currentPath === '/' ? 
-        `/${fileToDownload}` : 
-        `${currentPath}/${fileToDownload}`;
+  const downloadUrl = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(filePath)}`;
 
-      // 直接下载文件
-      const downloadUrl = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(filePath)}`;
-      
-      // 创建隐藏的链接进行下载
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileToDownload;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  // 用隐藏 a 标签触发下载
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = fileToDownload;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+//改
+
+//    function showFileMenu(event, filename, isDirectory) {
+//      event.preventDefault();
+//      selectedFile = filename;
+//      
+//      // 创建简单的右键菜单
+//      const menu = document.createElement('div');
+//      menu.style.position = 'absolute';
+//      menu.style.left = event.pageX + 'px';
+//      menu.style.top = event.pageY + 'px';
+//      menu.style.background = 'white';
+//      menu.style.border = '1px solid #ccc';
+//      menu.style.padding = '5px';
+//      menu.style.borderRadius = '4px';
+//      menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+//      menu.style.zIndex = '1000';
+//      
+//      menu.innerHTML = `
+//        <div style="padding: 5px; cursor: pointer;" onclick="downloadFile()">📥 下载</div>
+//        ${isDirectory ? '' : '<div style="padding: 5px; cursor: pointer;" onclick="deleteSelectedFile()">🗑️ 删除</div>'}
+//      `;
+//      
+//      document.body.appendChild(menu);
+//      
+//      // 点击其他地方关闭菜单
+//      const closeMenu = () => {
+//        document.body.removeChild(menu);
+//        document.removeEventListener('click', closeMenu);
+//      };
+//      
+//      setTimeout(() => {
+//        document.addEventListener('click', closeMenu);
+//      }, 100);
+//    }
+//新加
+function showFileMenu(event, filename, isDirectory) {
+  event.preventDefault();
+  selectedFile = filename;
+
+  // 计算完整路径
+  const filePath = currentPath === '/'
+    ? '/' + filename
+    : currentPath + '/' + filename;
+  
+  // 创建右键菜单
+  const menu = document.createElement('div');
+  menu.style.position = 'absolute';
+  menu.style.left = event.pageX + 'px';
+  menu.style.top = event.pageY + 'px';
+  menu.style.background = 'white';
+  menu.style.border = '1px solid #ccc';
+  menu.style.padding = '5px';
+  menu.style.borderRadius = '4px';
+  menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+  menu.style.zIndex = '1000';
+  
+  let html = '';
+
+  if (isDirectory) {
+    // 目录：提供“打包下载”
+    html += `
+      <div style="padding: 5px; cursor: pointer;" onclick="downloadAsZip('${filePath}')">
+        📦 打包下载为ZIP
+      </div>
+    `;
+  } else {
+    // 文件：保持原来的“下载”和“删除”
+    html += `
+      <div style="padding: 5px; cursor: pointer;" onclick="downloadFile('${filename}')">
+        📥 下载
+      </div>
+      <div style="padding: 5px; cursor: pointer;" onclick="deleteSelectedFile()">
+        🗑️ 删除
+</div>
+    `;
+  }
+
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  
+  // 点击其他地方关闭菜单
+  const closeMenu = () => {
+    if (menu.parentNode) {
+      document.body.removeChild(menu);
     }
+    document.removeEventListener('click', closeMenu);
+  };
+  
+  setTimeout(() => {
+    document.addEventListener('click', closeMenu);
+  }, 100);
+}
+//新加
 
-    function showFileMenu(event, filename, isDirectory) {
-      event.preventDefault();
-      selectedFile = filename;
-      
-      // 创建简单的右键菜单
-      const menu = document.createElement('div');
-      menu.style.position = 'absolute';
-      menu.style.left = event.pageX + 'px';
-      menu.style.top = event.pageY + 'px';
-      menu.style.background = 'white';
-      menu.style.border = '1px solid #ccc';
-      menu.style.padding = '5px';
-      menu.style.borderRadius = '4px';
-      menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-      menu.style.zIndex = '1000';
-      
-      menu.innerHTML = `
-        <div style="padding: 5px; cursor: pointer;" onclick="downloadFile()">📥 下载</div>
-        ${isDirectory ? '' : '<div style="padding: 5px; cursor: pointer;" onclick="deleteSelectedFile()">🗑️ 删除</div>'}
-      `;
-      
-      document.body.appendChild(menu);
-      
-      // 点击其他地方关闭菜单
-      const closeMenu = () => {
-        document.body.removeChild(menu);
-        document.removeEventListener('click', closeMenu);
-      };
-      
-      setTimeout(() => {
-        document.addEventListener('click', closeMenu);
-      }, 100);
-    }
+
 
     function deleteSelectedFile() {
       if (!selectedFile) return;

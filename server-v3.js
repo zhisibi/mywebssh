@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const { Client } = require('ssh2');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
 
 const app = express();
 const server = http.createServer(app);
@@ -189,6 +190,146 @@ app.post('/api/sftp/upload', express.json({ limit: '50mb' }), async (req, res) =
 });
 
 // SFTP 文件下载
+// SFTP 文件夹下载
+app.post('/api/sftp/download-batch', async (req, res) => {
+  const { serverId, paths } = req.body;
+
+  if (!Array.isArray(paths) || paths.length === 0) {
+    return res.status(400).json({ success: false, message: '缺少要下载的文件/目录列表' });
+  }
+
+  try {
+    const server = config.servers.find(s => s.id == serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, message: '服务器不存在' });
+    }
+
+    const sshConfig = {
+      host: server.host,
+      port: server.port || 22,
+      username: server.username,
+      readyTimeout: 10000
+    };
+
+    if (server.authType === 'password' && server.password) {
+      sshConfig.password = server.password;
+    } else if (server.authType === 'key' && server.privateKey) {
+      sshConfig.privateKey = server.privateKey;
+    }
+
+    const conn = new Client();
+
+    conn.on('ready', () => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          res.status(500).json({ success: false, message: 'SFTP 错误: ' + err.message });
+          conn.end();
+          return;
+        }
+
+        // 设置响应为 zip
+        res.setHeader('Content-Disposition', 'attachment; filename="download.zip"');
+        res.setHeader('Content-Type', 'application/zip');
+
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        archive.on('error', err => {
+          console.error('压缩错误:', err);
+          try { res.end(); } catch (e) {}
+        });
+
+        archive.pipe(res);
+
+        let pending = 0;
+        let finished = false;
+
+        function doneOne() {
+          if (finished) return;
+          pending--;
+          if (pending === 0) {
+            finished = true;
+            archive.finalize();
+            conn.end();
+          }
+        }
+
+        function addFileOrDir(remotePath, zipPath) {
+          pending++;
+
+          sftp.stat(remotePath, (err, stats) => {
+            if (err) {
+              console.error('stat 失败:', remotePath, err.message);
+              return doneOne();
+            }
+
+            if (stats.isDirectory()) {
+              const dirName = zipPath || remotePath.split('/').filter(Boolean).pop();
+              // 目录本身
+              if (dirName) {
+                archive.append(null, { name: dirName + '/', type: 'directory' });
+              }
+
+              sftp.readdir(remotePath, (err, list) => {
+                if (err) {
+                  console.error('读取目录失败:', remotePath, err.message);
+                  return doneOne();
+                }
+
+                if (!list || list.length === 0) {
+                  // 空目录
+                  return doneOne();
+                }
+
+                list.forEach(item => {
+                  const childRemote = remotePath === '/'
+                    ? '/' + item.filename
+                    : remotePath + '/' + item.filename;
+                  const childZipPath = (dirName ? dirName + '/' : '') + item.filename;
+                  addFileOrDir(childRemote, childZipPath);
+                });
+
+                doneOne();
+              });
+            } else {
+              // 普通文件
+              const fileName = zipPath || remotePath.split('/').pop();
+              const readStream = sftp.createReadStream(remotePath);
+              archive.append(readStream, { name: fileName });
+              readStream.on('end', () => {
+                doneOne();
+              });
+              readStream.on('error', (err) => {
+                console.error('读取文件失败:', remotePath, err.message);
+                doneOne();
+              });
+            }
+          });
+        }
+
+        // 启动所有路径的处理
+        paths.forEach(p => addFileOrDir(p, null));
+      });
+    });
+
+    conn.on('error', (err) => {
+      console.error('SSH 连接错误:', err.message);
+      try {
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: 'SSH 连接错误: ' + err.message });
+        }
+      } catch (e) {}
+    });
+
+    conn.connect(sshConfig);
+  } catch (error) {
+    console.error('服务器错误:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: '服务器错误: ' + error.message });
+    }
+  }
+});
+
+
+
 // SFTP 文件下载
 app.get('/api/sftp/download', async (req, res) => {
   const { serverId, path: filePath } = req.query;
