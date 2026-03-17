@@ -664,11 +664,16 @@ wss.on('connection', (ws) => {
 
   ws.on('message', (data) => {
     try {
+      console.log('Received message:', data);
       const message = JSON.parse(data);
+      console.log('Parsed message:', message);
 
       if (message.type === 'connect') {
         const token = message.token;
+        console.log('Token:', token);
+
         if (!token || !sessions.has(token)) {
+          console.log('Unauthorized access attempt');
           ws.send(JSON.stringify({ type: 'error', message: '未授权访问' }));
           ws.close();
           return;
@@ -679,8 +684,12 @@ wss.on('connection', (ws) => {
         sessions.set(token, session);
 
         const server = config.servers.find(s => s.id === message.serverId);
+        console.log('Server:', server);
+
         if (!server) {
+          console.log('Server not found:', message.serverId);
           ws.send(JSON.stringify({ type: 'error', message: '服务器不存在' }));
+          ws.close();
           return;
         }
 
@@ -697,38 +706,68 @@ wss.on('connection', (ws) => {
           sshConfig.privateKey = server.privateKey;
         }
 
+        console.log('Connecting to SSH:', sshConfig);
         connectSSH(ws, sshConfig);
       }
     } catch (error) {
-      console.log('WebSocket message error:', error.message);
+      console.log('WebSocket message error:', error.message, error.stack);
       try { ws.send(JSON.stringify({ type: 'error', message: '消息处理失败: ' + error.message })); } catch (_) {}
     }
+  });
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+  });
+
+  ws.on('error', (error) => {
+    console.log('WebSocket error:', error);
   });
 });
 
 function connectSSH(ws, sshConfig) {
   const conn = new Client();
 
+  console.log('SSH connecting to:', sshConfig.host, sshConfig.port);
+
   conn.on('ready', () => {
     console.log('SSH connection ready');
-    ws.send(JSON.stringify({ type: 'connected', message: 'SSH连接成功' }));
+    try {
+      ws.send(JSON.stringify({ type: 'connected', message: 'SSH连接成功' }));
+    } catch (e) {
+      console.log('Error sending connected message:', e.message);
+    }
 
     conn.shell((err, stream) => {
       if (err) {
-        ws.send(JSON.stringify({ type: 'error', message: 'SSH SHELL ERROR: ' + err.message }));
+        console.log('SSH shell error:', err.message);
+        try {
+          ws.send(JSON.stringify({ type: 'error', message: 'SSH SHELL ERROR: ' + err.message }));
+        } catch (e) {
+          console.log('Error sending shell error message:', e.message);
+        }
         ws.close();
         conn.end();
         return;
       }
 
+      console.log('SSH shell created');
+
       // SSH → 浏览器
       stream.on('data', (data) => {
-        ws.send(JSON.stringify({ type: 'data', data: data.toString('utf-8') }));
+        try {
+          ws.send(JSON.stringify({ type: 'data', data: data.toString('utf-8') }));
+        } catch (e) {
+          // WebSocket may be closed
+        }
       });
 
       stream.on('close', () => {
         console.log('SSH stream closed');
-        ws.send(JSON.stringify({ type: 'close', message: 'SSH连接已关闭' }));
+        try {
+          ws.send(JSON.stringify({ type: 'close', message: 'SSH连接已关闭' }));
+        } catch (e) {
+          console.log('Error sending close message:', e.message);
+        }
         ws.close();
         conn.end();
       });
@@ -740,20 +779,35 @@ function connectSSH(ws, sshConfig) {
           if (message.type === 'input') {
             stream.write(message.data);
           }
-        } catch (e) {}
+        } catch (e) {
+          console.log('Error handling message:', e.message);
+        }
       });
     });
   });
 
   conn.on('error', (err) => {
     console.log('SSH connection error:', err.message);
-    ws.send(JSON.stringify({ type: 'error', message: 'SSH连接错误: ' + err.message }));
+    try {
+      ws.send(JSON.stringify({ type: 'error', message: 'SSH连接错误: ' + err.message }));
+    } catch (e) {
+      console.log('Error sending error message:', e.message);
+    }
     ws.close();
   });
 
   conn.on('close', () => {
     console.log('SSH connection closed');
-    ws.close();
+    try {
+      ws.close();
+    } catch (e) {
+      console.log('Error closing WebSocket:', e.message);
+    }
+  });
+
+  conn.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
+    console.log('SSH keyboard-interactive');
+    finish([sshConfig.password || '']);
   });
 
   conn.connect(sshConfig);

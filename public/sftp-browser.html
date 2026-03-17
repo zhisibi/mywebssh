@@ -6,28 +6,30 @@
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f5f7fb; color:#1f2937; }
-    .layout { display:flex; height:100vh; }
+    .layout { display:flex; flex-direction:column; height:100vh; }
     .sidebar { width:280px; border-right:1px solid #e5e7eb; background:#fff; padding:16px; overflow:auto; transition:all .25s ease; }
     .sidebar.hidden-sidebar { width:0; padding:0; overflow:hidden; border-right:none; }
     .main { flex:1; display:flex; flex-direction:column; min-width:0; }
-    .topbar { padding:14px 18px; background:#fff; border-bottom:1px solid #e5e7eb; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .topbar { padding:14px 18px; background:#fff; border-bottom:1px solid #e5e7eb; }
+    .server-info { display:flex; gap:16px; align-items:center; margin-bottom:12px; }
+    .server-name { font-weight:700; font-size:16px; }
+    .server-details { color:#6b7280; font-size:13px; }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
     .content { padding:16px; overflow:auto; }
      .table-wrap { overflow:auto; }
     @media (max-width: 768px) {
-      .layout { flex-direction:column; }
-      .sidebar { width:100%; max-height:40vh; border-right:none; border-bottom:1px solid #e5e7eb; }
-      .sidebar.hidden-sidebar { max-height:0; width:100%; }
-      .topbar { padding:10px 12px; flex-direction:column; align-items:stretch; }
+      .topbar { padding:12px; }
+      .server-info { flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:12px; }
       .toolbar { width:100%; }
       .btn { flex:1 1 calc(50% - 8px); text-align:center; }
       .content { padding:8px; }
       th, td { padding:10px 8px; font-size:12px; }
       .actions { flex-wrap:wrap; }
+      .server-name { font-size:15px; }
     }
     .server-item { border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:10px; cursor:pointer; }
     .server-item:hover, .server-item.active { border-color:#4f46e5; background:#eef2ff; }
-    .server-name { font-weight:700; margin-bottom:4px; }
+    .server-name { margin-bottom:4px; }
     .server-meta { color:#6b7280; font-size:12px; }
     .breadcrumb { display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0; }
     .crumb { color:#4f46e5; cursor:pointer; }
@@ -65,14 +67,18 @@
     </aside>
     <main class="main">
       <div class="topbar">
+        <div class="server-info">
+          <div class="server-name" id="serverName">加载中...</div>
+          <div class="server-details" id="serverDetails"></div>
+        </div>
         <div class="breadcrumb" id="breadcrumb"></div>
         <div class="toolbar">
-          <button class="btn" onclick="toggleSidebar()">服务器</button>
           <button class="btn" onclick="goParent()">上一级</button>
           <button class="btn" onclick="refreshList()">刷新</button>
           <button class="btn" onclick="createFolder()">新建文件夹</button>
           <button class="btn" onclick="uploadFile()">上传文件</button>
           <button class="btn primary" onclick="downloadSelected()">批量下载</button>
+          <button class="btn" onclick="location.href='/dashboard.html'">返回控制台</button>
           <button class="btn" onclick="logout()">退出</button>
         </div>
       </div>
@@ -111,8 +117,10 @@
     let currentFiles = [];
     let selectedPaths = new Set();
 
+    const urlParams = new URLSearchParams(location.search);
+    const urlServerId = urlParams.get('server');
+
     function setStatus(text) { document.getElementById('statusBar').textContent = text; }
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden-sidebar'); }
     function escapeHtml(str='') { return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
     function joinPath(base, name) { return base === '/' ? `/${name}` : `${base}/${name}`; }
     function formatSize(bytes) {
@@ -160,7 +168,9 @@
       localStorage.setItem('webssh_token', authToken);
       document.getElementById('loginModal').classList.add('hidden');
       setStatus('登录成功');
-      loadServers();
+      function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden-sidebar'); }
+
+    init();
     }
 
     async function logout(reload = true) {
@@ -171,7 +181,56 @@
       } catch (_) {}
       authToken = null;
       localStorage.removeItem('webssh_token');
-      if (reload) location.reload();
+      if (reload) location.href = '/dashboard.html';
+      else location.reload();
+    }
+
+    async function init() {
+      if (!authToken) {
+        requireLogin();
+        return;
+      }
+
+      if (urlServerId) {
+        await loadServerById(urlServerId);
+      } else {
+        document.getElementById('serverName').textContent = '未选择服务器';
+        document.getElementById('serverDetails').textContent = '请从控制面板进入';
+        document.getElementById('fileList').innerHTML = `
+          <div class="empty">
+            <h3>未指定服务器</h3>
+            <p>请从控制面板选择服务器进入 SFTP 文件管理</p>
+            <button class="btn primary" onclick="location.href='/dashboard.html'" style="margin-top:12px;">前往控制面板</button>
+          </div>`;
+      }
+    }
+
+    async function loadServerById(serverIdStr) {
+      try {
+        setStatus(`正在加载服务器信息 (ID: ${serverIdStr})...`);
+        const res = await authFetch('/api/servers');
+        const servers = await res.json();
+        currentServer = servers.find(s => String(s.id) === String(serverIdStr));
+        
+        if (!currentServer) {
+          setStatus('服务器不存在');
+          document.getElementById('serverName').textContent = '服务器不存在';
+          document.getElementById('serverDetails').textContent = '';
+          document.getElementById('fileList').innerHTML = `<div class="empty"><h3>服务器不存在</h3><p>服务器 ID: ${escapeHtml(serverIdStr)}</p><button class="btn primary" onclick="location.href='/dashboard.html'" style="margin-top:12px;">返回控制面板</button></div>`;
+          return;
+        }
+
+        document.getElementById('serverName').textContent = currentServer.name;
+        document.getElementById('serverDetails').textContent = `${escapeHtml(currentServer.username)}@${escapeHtml(currentServer.host)}:${currentServer.port || 22}`;
+        currentPath = '/';
+        selectedPaths.clear();
+        
+        updateBreadcrumb();
+        await refreshList();
+      } catch (error) {
+        setStatus('加载失败');
+        document.getElementById('fileList').innerHTML = `<div class="empty"><h3>加载失败</h3><p>${escapeHtml(error.message)}</p><button class="btn primary" onclick="location.href='/dashboard.html'" style="margin-top:12px;">返回控制面板</button></div>`;
+      }
     }
 
     async function loadServers() {
@@ -395,9 +454,7 @@
       document.getElementById('previewModal').classList.add('hidden');
     }
 
-    requireLogin();
-    if (authToken) loadServers();
-    updateBreadcrumb();
+    init();
   </script>
 </body>
 </html>

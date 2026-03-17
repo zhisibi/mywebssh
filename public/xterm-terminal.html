@@ -146,20 +146,26 @@
       ws = new WebSocket(`${protocol}//${location.host}`);
 
       ws.onopen = () => {
+        console.log('WebSocket opened');
         reconnectBtn.style.display = 'none';
-        ws.send(JSON.stringify({
+        const connectMsg = {
           type: 'connect',
           token: authToken,
           serverId: parseInt(currentServer.id, 10),
           cols: term.cols,
           rows: term.rows
-        }));
+        };
+        console.log('Sending message:', connectMsg);
+        ws.send(JSON.stringify(connectMsg));
         term.focus();
+        term.write('\r\n*** WebSocket已连接，正在建立SSH连接...\r\n');
       };
 
       ws.onmessage = (event) => {
+        console.log('WebSocket message:', event.data);
         let message;
         try { message = JSON.parse(event.data); } catch { term.write(event.data); return; }
+        console.log('Parsed message:', message);
         switch (message.type) {
           case 'connected':
             updateStatus('connected', '已连接');
@@ -184,17 +190,21 @@
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
         updateStatus('disconnected', '已断开');
         reconnectBtn.style.display = 'inline-block';
         hideLoading();
+        term.write(`\r\n*** WebSocket连接已关闭 (code: ${event.code}, reason: ${event.reason}) ***\r\n`);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (error) => {
+        console.log('WebSocket error:', error);
         updateStatus('disconnected', '连接错误');
         reconnectBtn.style.display = 'inline-block';
         hideLoading();
-        term.write('\r\n*** WebSocket 连接错误 ***\r\n');
+        term.write('\r\n*** WebSocket连接错误 ***\r\n');
+        term.write('\r\n*** 详细错误信息请查看浏览器控制台 (F12) ***\r\n');
       };
     }
 
