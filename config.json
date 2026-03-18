@@ -4,21 +4,7 @@
     "password": "admin123"
   },
   "servers": [
-    {
-      "id": 1,
-      "name": "测试服务器 192.168.100.20",
-      "host": "192.168.100.20",
-      "port": 22,
-      "username": "root",
-      "authType": "password",
-      "password": "1234",
-      "tags": [
-        "测试",
-        "本地"
-      ],
-      "enabled": true
-    },
-    {
+      {
       "id": 1773764983748,
       "name": "test-add",
       "host": "127.0.0.1",
