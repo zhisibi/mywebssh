@@ -1,8 +1,7 @@
 {
   "admin": {
     "username": "admin",
-    "password": "3c9e77844759af59218851ff870b9090:7a68f7faf620d620e1d1662ec2c1f2e8:c80997d79c924fa0",
-    "_plainPassword": "admin123"
+    "password": "3c9e77844759af59218851ff870b9090:7a68f7faf620d620e1d1662ec2c1f2e8:c80997d79c924fa0"
   },
   "servers": [
     {
@@ -17,8 +16,7 @@
       "authType": "password",
       "tags": [],
       "enabled": true,
-      "password": "a5fc6aa7a8a800c6b009b0782e9dfaae:3bf10972b02ed2f82602a3876744e505:18af2234",
-      "_plainPassword": "1234"
+      "password": "a5fc6aa7a8a800c6b009b0782e9dfaae:3bf10972b02ed2f82602a3876744e505:18af2234"
     },
     {
       "id": 1773840567330,
@@ -32,8 +30,7 @@
       "authType": "password",
       "tags": [],
       "enabled": true,
-      "password": "c269ae9e2c9fe2a46696f063301fcd95:d862923b737c6b9c4f8124c151930a58:8b4af78937b030",
-      "_plainPassword": "test123"
+      "password": "c269ae9e2c9fe2a46696f063301fcd95:d862923b737c6b9c4f8124c151930a58:8b4af78937b030"
     }
   ],
   "port": 3000

@@ -282,11 +282,9 @@ app.post('/api/servers', requireAuth, (req, res) => {
   
   if (password) {
     newServer.password = encrypt(password);
-    newServer._plainPassword = password;
   }
   if (privateKey) {
     newServer.privateKey = encrypt(privateKey);
-    newServer._plainKey = privateKey;
   }
   if (passphrase) {
     newServer.passphrase = encrypt(passphrase);
@@ -333,9 +331,7 @@ app.put('/api/servers/import', requireAuth, (req, res) => {
     _username: s.username || '',
     authType: s.authType || 'password',
     password: s.password ? encrypt(s.password) : '',
-    _plainPassword: s.password || '',
     privateKey: s.privateKey ? encrypt(s.privateKey) : '',
-    _plainKey: s.privateKey || '',
     passphrase: s.passphrase ? encrypt(s.passphrase) : '',
     tags: s.tags || [],
     enabled: true
@@ -379,11 +375,9 @@ app.put('/api/servers/:id', requireAuth, (req, res) => {
   // 加密敏感信息
   if (password !== undefined) {
     config.servers[index].password = password ? encrypt(password) : '';
-    config.servers[index]._plainPassword = password || '';
   }
   if (privateKey !== undefined) {
     config.servers[index].privateKey = privateKey ? encrypt(privateKey) : '';
-    config.servers[index]._plainKey = privateKey || '';
   }
   if (passphrase !== undefined) {
     config.servers[index].passphrase = passphrase ? encrypt(passphrase) : '';
