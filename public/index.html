@@ -2,88 +2,153 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>WebSSH Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WebSSH - 登录</title>
   <style>
-    body { margin: 0; background: #000; color: #0f0; font-family: monospace; }
-    #terminal {
-      width: 100vw;
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       height: 100vh;
-      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .login-container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+    
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #555;
+      font-weight: 500;
+    }
+    
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
       box-sizing: border-box;
-      white-space: pre-wrap;
-      overflow-y: auto;
+    }
+    
+    input:focus {
       outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+    
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    button:hover {
+      background: #5a67d8;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .error {
+      color: #e53e3e;
+      font-size: 14px;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+    
+    @media (max-width: 480px) {
+      .login-container {
+        width: 90%;
+        padding: 1.5rem;
+      }
+      h2 { font-size: 1.25rem; }
+      input, button { font-size: 16px; }
     }
   </style>
 </head>
 <body>
-  <div id="terminal" tabindex="0"></div>
+  <div class="login-container">
+    <h2>WebSSH 管理登录</h2>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" name="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit">登录</button>
+      <div id="error" class="error" style="display: none;"></div>
+    </form>
+  </div>
+
   <script>
-    const term = document.getElementById('terminal');
-    let ws;
-
-    function connect() {
-      ws = new WebSocket(`ws://${location.host}`);
-
-      ws.onopen = () => {
-        writeText('*** Connected to WebSSH server ***\r\n');
-        term.focus();
-      };
-
-      ws.onmessage = (event) => {
-        writeText(event.data);
-      };
-
-      ws.onclose = () => {
-        writeText('\r\n*** Connection closed ***\r\n');
-      };
-
-      ws.onerror = (err) => {
-        writeText('\r\n*** WebSocket error ***\r\n');
-      };
-    }
-
-    function writeText(text) {
-      term.textContent += text;
-      term.scrollTop = term.scrollHeight;
-    }
-
-    // 监听键盘输入，把按键发送给后端
-    term.addEventListener('keydown', (e) => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-      // 处理常见按键
-      if (e.key === 'Enter') {
-        ws.send('\r');
-        e.preventDefault();
-      } else if (e.key === 'Backspace') {
-        ws.send('\x7f');
-        e.preventDefault();
-      } else if (e.key.length === 1) {
-        ws.send(e.key);
-        e.preventDefault();
-      } else if (e.key === 'ArrowUp') {
-        ws.send('\x1b[A');
-        e.preventDefault();
-      } else if (e.key === 'ArrowDown') {
-        ws.send('\x1b[B');
-        e.preventDefault();
-      } else if (e.key === 'ArrowRight') {
-        ws.send('\x1b[C');
-        e.preventDefault();
-      } else if (e.key === 'ArrowLeft') {
-        ws.send('\x1b[D');
-        e.preventDefault();
-      } else if (e.ctrlKey && e.key === 'c') {
-        ws.send('\x03'); // Ctrl-C
-        e.preventDefault();
-      } else if (e.ctrlKey && e.key === 'd') {
-        ws.send('\x04'); // Ctrl-D
-        e.preventDefault();
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('error');
+      const button = e.target.querySelector('button');
+      
+      button.disabled = true;
+      errorDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          localStorage.setItem('webssh_token', result.token);
+          window.location.href = '/dashboard.html';
+        } else {
+          errorDiv.textContent = result.message;
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        errorDiv.textContent = '网络错误，请检查服务器状态';
+        errorDiv.style.display = 'block';
+      } finally {
+        button.disabled = false;
       }
     });
-
-    connect();
   </script>
 </body>
 </html>

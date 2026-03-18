@@ -10,12 +10,12 @@
     .sidebar { width:280px; border-right:1px solid #e5e7eb; background:#fff; padding:16px; overflow:auto; transition:all .25s ease; }
     .sidebar.hidden-sidebar { width:0; padding:0; overflow:hidden; border-right:none; }
     .main { flex:1; display:flex; flex-direction:column; min-width:0; }
-    .topbar { padding:14px 18px; background:#fff; border-bottom:1px solid #e5e7eb; }
+    .topbar { padding:14px 18px; background:#111827; border-bottom:1px solid #e5e7eb; flex-shrink:0; }
     .server-info { display:flex; gap:16px; align-items:center; margin-bottom:12px; }
-    .server-name { font-weight:700; font-size:16px; }
-    .server-details { color:#6b7280; font-size:13px; }
+    .server-name { font-weight:700; font-size:16px; color:#fff; }
+    .server-details { color:#9ca3af; font-size:13px; }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
-    .content { padding:16px; overflow:auto; }
+    .content { padding:16px; overflow:auto; flex:1; }
      .table-wrap { overflow:auto; }
     @media (max-width: 768px) {
       .topbar { padding:12px; }
@@ -34,7 +34,9 @@
     .breadcrumb { display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0; }
     .crumb { color:#4f46e5; cursor:pointer; }
     .crumb:hover { text-decoration:underline; }
-    .btn { border:1px solid #d1d5db; background:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }
+    .btn { border:none; border-radius:10px; padding:10px 14px; cursor:pointer; }
+    .btn.secondary { background:#374151; color:#fff; }
+    .btn.secondary:hover { background:#4b5563; }
     .btn:hover { background:#f9fafb; }
     .btn.primary { background:#4f46e5; color:#fff; border-color:#4f46e5; }
     .btn.danger { color:#b91c1c; }
@@ -52,7 +54,7 @@
     textarea { min-height:320px; resize:vertical; }
     .hidden { display:none !important; }
     .status { padding:10px 12px; background:#fff; border-top:1px solid #e5e7eb; color:#6b7280; }
-    .empty { background:#fff; border-radius:12px; padding:60px 20px; text-align:center; color:#6b7280; }
+    .empty { background:#fff; border-radius:12px; padding:20px; text-align:center; color:#6b7280; }
     .file-link { cursor:pointer; }
   </style>
 </head>
@@ -66,20 +68,19 @@
       <div id="serverList"></div>
     </aside>
     <main class="main">
-      <div class="topbar">
-        <div class="server-info">
-          <div class="server-name" id="serverName">加载中...</div>
-          <div class="server-details" id="serverDetails"></div>
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+          <span id="serverName" style="font-weight:700;font-size:16px;color:#fff;"></span>
+          <span id="serverDetails" style="color:#9ca3af;font-size:13px;"></span>
+          <span id="breadcrumb" style="color:#9ca3af;font-size:12px;margin-left:8px;"></span>
         </div>
-        <div class="breadcrumb" id="breadcrumb"></div>
-        <div class="toolbar">
-          <button class="btn" onclick="goParent()">上一级</button>
-          <button class="btn" onclick="refreshList()">刷新</button>
-          <button class="btn" onclick="createFolder()">新建文件夹</button>
-          <button class="btn" onclick="uploadFile()">上传文件</button>
-          <button class="btn primary" onclick="downloadSelected()">批量下载</button>
-          <button class="btn" onclick="location.href='/dashboard.html'">返回控制台</button>
-          <button class="btn" onclick="logout()">退出</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn secondary" onclick="goParent()">上一级</button>
+          <button class="btn secondary" onclick="refreshList()">刷新</button>
+          <button class="btn secondary" onclick="createFolder()">新建</button>
+          <button class="btn secondary" onclick="uploadFile()">上传</button>
+          <button class="btn secondary" onclick="downloadSelected()">打包下载</button>
+          <button class="btn secondary" onclick="window.close()">关闭</button>
         </div>
       </div>
       <div class="content">

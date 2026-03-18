@@ -11,12 +11,12 @@
     .main-content { padding:24px; }
     .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
     .servers-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
-    .server-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; box-shadow:0 4px 18px rgba(0,0,0,.04); }
-    .server-header { display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
+    .server-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; box-shadow:0 4px 18px rgba(0,0,0,.04); text-align:center; }
+    .server-header { display:flex; gap:12px; align-items:center; justify-content:center; margin-bottom:16px; }
     .server-icon { font-size:28px; }
     .server-name { font-size:18px; font-weight:700; }
     .server-address { color:#6b7280; font-size:13px; }
-    .server-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .server-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; justify-content:space-evenly; width:100%; }
     .server-btn, .add-server-btn, .logout-btn, .modal-footer button { border:none; border-radius:10px; padding:10px 14px; cursor:pointer; }
     .server-btn.ssh { background:#111827; color:#fff; }
     .server-btn.ftp { background:#4f46e5; color:#fff; }
@@ -111,10 +111,6 @@
               <button class="server-btn ftp" onclick="openFTP(${server.id})">SFTP</button>
               <button class="server-btn edit" onclick="editServer(${server.id})">编辑</button>
               <button class="server-btn delete" onclick="deleteServer(${server.id})">删除</button>
-            </div>
-            <div class="server-status">
-              <span class="status-indicator ${server.enabled ? 'online' : 'offline'}"></span>
-              <span>${server.enabled ? '已启用' : '已禁用'}</span>
             </div>`;
           grid.appendChild(card);
         });
@@ -142,6 +138,7 @@
             <div class="form-group"><label>认证方式</label><select name="authType" onchange="toggleAuthField()"><option value="password">密码认证</option><option value="key">密钥认证</option></select></div>
             <div class="form-group" id="passwordField"><label>密码</label><input name="password" type="password"></div>
             <div class="form-group" id="keyField" style="display:none;"><label>私钥</label><textarea name="privateKey" rows="5"></textarea></div>
+            <div class="form-group" id="passphraseField" style="display:none;"><label>密钥密码（passphrase）</label><input name="passphrase" type="password"></div>
             <div class="form-group"><label>标签（逗号分隔）</label><input name="tags"></div>
           </form>
           <div class="modal-footer"><button type="button" onclick="closeModal()">取消</button><button type="submit" form="serverForm" style="background:#10b981;color:#fff;">保存</button></div>
@@ -170,6 +167,7 @@
             <div class="form-group"><label>认证方式</label><select name="authType" onchange="toggleAuthField()"><option value="password" ${server.authType==='password'?'selected':''}>密码认证</option><option value="key" ${server.authType==='key'?'selected':''}>密钥认证</option></select></div>
             <div class="form-group" id="passwordField" style="display:${server.authType==='password'?'block':'none'};"><label>密码</label><input name="password" type="password" value="${escapeHtml(server.password || '')}"></div>
             <div class="form-group" id="keyField" style="display:${server.authType==='key'?'block':'none'};"><label>私钥</label><textarea name="privateKey" rows="5">${escapeHtml(server.privateKey || '')}</textarea></div>
+            <div class="form-group" id="passphraseField" style="display:${server.authType==='key'?'block':'none'};"><label>密钥密码</label><input name="passphrase" type="password" value="${escapeHtml(server.passphrase || '')}"></div>
             <div class="form-group"><label>标签</label><input name="tags" value="${escapeHtml((server.tags || []).join(', '))}"></div>
             <div class="form-group"><label>启用状态</label><select name="enabled"><option value="true" ${server.enabled?'selected':''}>启用</option><option value="false" ${!server.enabled?'selected':''}>禁用</option></select></div>
           </form>
@@ -183,6 +181,7 @@
       const authType = document.querySelector('.modal select[name="authType"]').value;
       document.getElementById('passwordField').style.display = authType === 'password' ? 'block' : 'none';
       document.getElementById('keyField').style.display = authType === 'key' ? 'block' : 'none';
+      document.getElementById('passphraseField').style.display = authType === 'key' ? 'block' : 'none';
     }
 
     async function handleAddServer(event) {
@@ -197,7 +196,10 @@
         tags: (formData.get('tags') || '').split(',').map(v => v.trim()).filter(Boolean)
       };
       if (serverData.authType === 'password') serverData.password = formData.get('password') || '';
-      else serverData.privateKey = formData.get('privateKey') || '';
+      else {
+        serverData.privateKey = formData.get('privateKey') || '';
+        serverData.passphrase = formData.get('passphrase') || '';
+      }
 
       const response = await authFetch('/api/servers', {
         method: 'POST',
@@ -225,7 +227,10 @@
         tags: (formData.get('tags') || '').split(',').map(v => v.trim()).filter(Boolean)
       };
       if (serverData.authType === 'password') serverData.password = formData.get('password') || '';
-      else serverData.privateKey = formData.get('privateKey') || '';
+      else {
+        serverData.privateKey = formData.get('privateKey') || '';
+        serverData.passphrase = formData.get('passphrase') || '';
+      }
 
       const response = await authFetch(`/api/servers/${id}`, {
         method: 'PUT',

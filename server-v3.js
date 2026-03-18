@@ -145,6 +145,7 @@ app.post('/api/sftp/mkdir', requireAuth, async (req, res) => {
       sshConfig.password = server.password;
     } else if (server.authType === 'key' && server.privateKey) {
       sshConfig.privateKey = server.privateKey;
+      if (server.passphrase) sshConfig.passphrase = server.passphrase;
     }
 
     const conn = new Client();
@@ -204,6 +205,7 @@ app.post('/api/sftp/upload', requireAuth, express.json({ limit: '50mb' }), async
       sshConfig.password = server.password;
     } else if (server.authType === 'key' && server.privateKey) {
       sshConfig.privateKey = server.privateKey;
+      if (server.passphrase) sshConfig.passphrase = server.passphrase;
     }
 
     const conn = new Client();
@@ -271,6 +273,7 @@ app.post('/api/sftp/download-batch', requireAuth, async (req, res) => {
       sshConfig.password = server.password;
     } else if (server.authType === 'key' && server.privateKey) {
       sshConfig.privateKey = server.privateKey;
+      if (server.passphrase) sshConfig.passphrase = server.passphrase;
     }
 
     const conn = new Client();
@@ -407,6 +410,7 @@ app.get('/api/sftp/download', requireAuth, async (req, res) => {
       sshConfig.password = server.password;
     } else if (server.authType === 'key' && server.privateKey) {
       sshConfig.privateKey = server.privateKey;
+      if (server.passphrase) sshConfig.passphrase = server.passphrase;
     }
 
     const conn = new Client();
@@ -481,6 +485,7 @@ app.get('/api/sftp/list', requireAuth, async (req, res) => {
       sshConfig.password = server.password;
     } else if (server.authType === 'key' && server.privateKey) {
       sshConfig.privateKey = server.privateKey;
+      if (server.passphrase) sshConfig.passphrase = server.passphrase;
     }
 
     const conn = new Client();
@@ -549,6 +554,7 @@ app.post('/api/sftp/rename', requireAuth, async (req, res) => {
     };
     if (server.authType === 'password' && server.password) sshConfig.password = server.password;
     else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+    if (server.passphrase) sshConfig.passphrase = server.passphrase;
 
     const conn = new Client();
     conn.on('ready', () => {
@@ -587,6 +593,7 @@ app.post('/api/sftp/delete', requireAuth, async (req, res) => {
     };
     if (server.authType === 'password' && server.password) sshConfig.password = server.password;
     else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+    if (server.passphrase) sshConfig.passphrase = server.passphrase;
 
     const conn = new Client();
     conn.on('ready', () => {
@@ -657,6 +664,7 @@ app.get('/api/sftp/read', requireAuth, async (req, res) => {
     };
     if (server.authType === 'password' && server.password) sshConfig.password = server.password;
     else if (server.authType === 'key' && server.privateKey) sshConfig.privateKey = server.privateKey;
+    if (server.passphrase) sshConfig.passphrase = server.passphrase;
 
     const conn = new Client();
     conn.on('ready', () => {
