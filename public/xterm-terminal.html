@@ -47,7 +47,7 @@
     <div class="actions">
       <span id="connectionStatus" class="chip connecting">连接中</span>
       <button class="btn" id="reconnectBtn" onclick="reconnect()" style="display:none;">重连</button>
-      <button class="btn" onclick="history.back()">返回</button>
+      <button class="btn" onclick="closeTerminal()">关闭</button>
     </div>
   </div>
   <div id="terminalWrap"><div id="terminal"></div></div>
@@ -81,6 +81,7 @@
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
+
 
     window.addEventListener('resize', () => {
       fitAddon.fit();
@@ -218,6 +219,19 @@
       if (ws) try { ws.close(); } catch (_) {}
       term.write('\r\n*** 正在重连... ***\r\n');
       connectWebSocket();
+    }
+
+    function closeTerminal() {
+      if (ws) {
+        try {
+          ws.close();
+        } catch (_) {}
+      }
+      window.close();
+      // 如果是被其他页面打开（比如 dashboard），则跳回控制面板
+      if (window.opener) {
+        window.location.href = '/dashboard.html';
+      }
     }
 
     showLoading();
