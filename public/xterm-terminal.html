@@ -18,10 +18,7 @@
     .server-details { display:none; }
     .actions { gap:8px; align-items:center; }
     .chip { display:none; }
-    .connecting { background:#92400e; color:#fde68a; }
-    .connected { background:#065f46; color:#a7f3d0; }
-    .disconnected { background:#7f1d1d; color:#fecaca; }
-    .btn { border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#fff; border-radius:8px; padding:7px 10px; cursor:pointer; }
+    .btn { border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#fff; border-radius:8px; padding:6px 10px; cursor:pointer; font-size:13px; }
     .btn:hover { background:rgba(255,255,255,.14); }
     .terminal-container { flex:1; position:relative; overflow:hidden; }
     #terminal { width:100%; height:100%; padding:8px; }
@@ -29,58 +26,28 @@
       position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.7);
       display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px;
     }
-    .mobile-keypad {
-      display:none;
-      background:rgba(17,24,39,.95);
-      border-top:1px solid rgba(255,255,255,.12);
-      padding:8px 10px;
-      overflow-x:auto;
-      white-space:nowrap;
-      -webkit-overflow-scrolling:touch;
-    }
-    .mobile-keypad .row {
-      display:flex;
-      gap:6px;
-      margin-bottom:6px;
-      justify-content:center;
-    }
-    .mobile-keypad .key {
-      min-width:44px;
-      height:44px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:rgba(255,255,255,.12);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius:10px;
-      color:#fff;
-      font-size:14px;
-      font-weight:500;
-      cursor:pointer;
-      user-select:none;
-      -webkit-user-select:none;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .mobile-keypad .key:active {
-      background:rgba(255,255,255,.24);
-    }
-    .mobile-keypad .key.special {
-      background:rgba(16,185,129,.2);
-      border-color:rgba(16,185,129,.4);
-      color:#34d399;
-    }
-    .mobile-keypad .key.ctrl {
-      background:rgba(239,68,68,.2);
-      border-color:rgba(239,68,68,.4);
-      color:#f87171;
-    }
+    .mobile-keypad { display:none; }
     @media (max-width: 768px) {
-      .status-bar { padding:6px 10px; flex-direction:column; align-items:flex-start; gap:6px; }
-      .server-info { margin:0; font-size:13px; }
-      .actions { width:100%; justify-content:flex-end; gap:8px; }
-      .btn { padding:6px 10px; font-size:12px; }
-      .mobile-keypad { padding:6px 8px; }
-      .mobile-keypad .key { min-width:40px; height:40px; font-size:13px; }
+      .mobile-keypad {
+        display:block;
+        background:rgba(17,24,39,.95);
+        border-top:1px solid rgba(255,255,255,.12);
+        padding:6px 8px;
+        overflow-x:auto;
+        white-space:nowrap;
+        -webkit-overflow-scrolling:touch;
+      }
+      .mobile-keypad .row { display:flex; gap:6px; margin-bottom:6px; justify-content:center; }
+      .mobile-keypad .key {
+        min-width:40px; height:40px;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+        border-radius:10px; color:#fff; font-size:13px; font-weight:500; cursor:pointer;
+        user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;
+      }
+      .mobile-keypad .key:active { background:rgba(255,255,255,.24); }
+      .mobile-keypad .key.special { background:rgba(16,185,129,.2); border-color:rgba(16,185,129,.4); color:#34d399; }
+      .mobile-keypad .key.ctrl { background:rgba(239,68,68,.2); border-color:rgba(239,68,68,.4); color:#f87171; }
     }
   </style>
 </head>
@@ -88,8 +55,8 @@
   <div class="layout">
     <div class="status-bar">
       <div class="server-info">
-        <div id="serverName" class="server-name">正在准备终端...</div>
-        <div id="serverDetails" class="server-details"></div>
+        <div id="serverName">正在准备终端...</div>
+        <div id="serverDetails"></div>
       </div>
       <div class="actions">
         <button class="btn" id="reconnectBtn" onclick="reconnect()" style="display:none;">重连</button>
@@ -117,9 +84,8 @@
         <button class="key" onclick="sendCtrl('L')">Ctrl+L</button>
       </div>
     </div>
-  </div>
 
-  <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
+    <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
 
   <script src="https://unpkg.com/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -128,7 +94,6 @@
     const urlParams = new URLSearchParams(location.search);
     const serverId = urlParams.get('server');
     const serverNameEl = document.getElementById('serverName');
-    const serverDetailsEl = document.getElementById('serverDetails');
     const statusEl = document.getElementById('connectionStatus');
     const reconnectBtn = document.getElementById('reconnectBtn');
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -141,7 +106,7 @@
       },
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, Consolas, monospace',
-      cursorBlink: true,
+      cursorBend: true,
       convertEol: false,
       scrollback: 5000
     });
@@ -201,7 +166,6 @@
           return;
         }
         serverNameEl.textContent = currentServer.name;
-        serverDetailsEl.textContent = `${currentServer.username}@${currentServer.host}:${currentServer.port || 22}`;
         connectWebSocket();
       } catch (error) {
         term.write(`获取服务器信息失败: ${error.message}\r\n`);
@@ -298,40 +262,21 @@
         } catch (_) {}
       }
       window.close();
-      // 如果是被其他页面打开（比如 dashboard），则跳回控制面板
       if (window.opener) {
         window.location.href = '/dashboard.html';
       }
     }
 
-    function sendEsc() {
-      sendKey('\x1b');
-    }
-
-    function sendTab() {
-      sendKey('\t');
-    }
-
+    function sendEsc() { sendKey('\x1b'); }
+    function sendTab() { sendKey('\t'); }
     function sendCtrl(key) {
-      const ctrlKeys = {
-        'C': '\x03',
-        'V': '\x16',
-        'Z': '\x1a',
-        'L': '\x0c'
-      };
+      const ctrlKeys = { 'C': '\x03', 'V': '\x16', 'Z': '\x1a', 'L': '\x0c' };
       sendKey(ctrlKeys[key] || '');
     }
-
     function sendArrow(dir) {
-      const arrows = {
-        'UP': '\x1b[A',
-        'DOWN': '\x1b[B',
-        'LEFT': '\x1b[D',
-        'RIGHT': '\x1b[C'
-      };
+      const arrows = { 'UP': '\x1b[A', 'DOWN': '\x1b[B', 'LEFT': '\x1b[D', 'RIGHT': '\x1b[C' };
       sendKey(arrows[dir] || '');
     }
-
     function sendKey(key) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', data: key }));
