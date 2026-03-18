@@ -590,15 +590,21 @@ app.get('/api/sftp/list', requireAuth, (req, res) => {
           return res.status(500).json({ error: err.message });
         }
         
-        const files = list.map(item => ({
-          name: item.filename,
-          isDirectory: item.attrs.isDirectory(),
-          isSymbolicLink: item.attrs.isSymbolicLink(),
-          size: item.attrs.size,
-          modifyTime: Math.floor(item.attrs.mtime.getTime() / 1000)
-        }));
+        const files = list.map(item => {
+          const isDir = item.attrs.isDirectory();
+          const isLink = item.attrs.isSymbolicLink();
+          return {
+            name: item.filename,
+            type: isDir ? 'directory' : (isLink ? 'link' : 'file'),
+            size: item.attrs.size,
+            mtime: item.attrs.mtime && typeof item.attrs.mtime.getTime === 'function' 
+              ? Math.floor(item.attrs.mtime.getTime() / 1000) 
+              : item.attrs.mtime,
+            mode: item.attrs.mode ? item.attrs.mode.toString(8) : ''
+          };
+        });
         
-        res.json(files);
+        res.json({ success: true, files });
       });
     });
   });
