@@ -29,12 +29,58 @@
       position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.7);
       display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px;
     }
+    .mobile-keypad {
+      display:none;
+      background:rgba(17,24,39,.95);
+      border-top:1px solid rgba(255,255,255,.12);
+      padding:8px 10px;
+      overflow-x:auto;
+      white-space:nowrap;
+      -webkit-overflow-scrolling:touch;
+    }
+    .mobile-keypad .row {
+      display:flex;
+      gap:6px;
+      margin-bottom:6px;
+      justify-content:center;
+    }
+    .mobile-keypad .key {
+      min-width:44px;
+      height:44px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:10px;
+      color:#fff;
+      font-size:14px;
+      font-weight:500;
+      cursor:pointer;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mobile-keypad .key:active {
+      background:rgba(255,255,255,.24);
+    }
+    .mobile-keypad .key.special {
+      background:rgba(16,185,129,.2);
+      border-color:rgba(16,185,129,.4);
+      color:#34d399;
+    }
+    .mobile-keypad .key.ctrl {
+      background:rgba(239,68,68,.2);
+      border-color:rgba(239,68,68,.4);
+      color:#f87171;
+    }
     @media (max-width: 768px) {
       .status-bar { padding:8px 10px; flex-wrap:wrap; align-items:flex-start; }
       .server-info { width:100%; }
       .actions { width:100%; justify-content:space-between; }
       .btn { padding:8px 10px; font-size:12px; }
-      #terminalWrap { inset:90px 0 0 0; padding:4px; }
+      #terminalWrap { inset:146px 0 0 0; padding:4px; }
+      .mobile-keypad { display:block; }
     }
   </style>
 </head>
@@ -52,6 +98,23 @@
   </div>
   <div id="terminalWrap"><div id="terminal"></div></div>
   <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
+
+  <div class="mobile-keypad">
+    <div class="row">
+      <button class="key" onclick="sendEsc()">ESC</button>
+      <button class="key" onclick="sendTab()">TAB</button>
+      <button class="key ctrl" onclick="sendCtrl('C')">Ctrl+C</button>
+      <button class="key" onclick="sendCtrl('V')">Ctrl+V</button>
+      <button class="key" onclick="sendCtrl('Z')">Ctrl+Z</button>
+    </div>
+    <div class="row">
+      <button class="key" onclick="sendArrow('UP')">↑</button>
+      <button class="key" onclick="sendArrow('DOWN')">↓</button>
+      <button class="key" onclick="sendArrow('LEFT')">←</button>
+      <button class="key" onclick="sendArrow('RIGHT')">→</button>
+      <button class="key" onclick="sendCtrl('L')">Ctrl+L</button>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -231,6 +294,40 @@
       // 如果是被其他页面打开（比如 dashboard），则跳回控制面板
       if (window.opener) {
         window.location.href = '/dashboard.html';
+      }
+    }
+
+    function sendEsc() {
+      sendKey('\x1b');
+    }
+
+    function sendTab() {
+      sendKey('\t');
+    }
+
+    function sendCtrl(key) {
+      const ctrlKeys = {
+        'C': '\x03',
+        'V': '\x16',
+        'Z': '\x1a',
+        'L': '\x0c'
+      };
+      sendKey(ctrlKeys[key] || '');
+    }
+
+    function sendArrow(dir) {
+      const arrows = {
+        'UP': '\x1b[A',
+        'DOWN': '\x1b[B',
+        'LEFT': '\x1b[D',
+        'RIGHT': '\x1b[C'
+      };
+      sendKey(arrows[dir] || '');
+    }
+
+    function sendKey(key) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: key }));
       }
     }
 
