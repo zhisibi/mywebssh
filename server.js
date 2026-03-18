@@ -207,20 +207,37 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 // 修改管理员密码
 app.post('/api/admin/password', requireAuth, (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { oldPassword, newPassword, currentPassword, password } = req.body;
   
-  if (!currentPassword || !newPassword) {
+  // 兼容多种参数名
+  const currentPwd = oldPassword || currentPassword || password;
+  const newPwd = newPassword;
+  
+  if (!currentPwd || !newPwd) {
     return res.status(400).json({ success: false, message: '请提供当前密码和新密码' });
   }
   
   // 验证当前密码
-  const storedPassword = config.admin._plainPassword || config.admin.password;
-  const inputHash = hashPassword(currentPassword);
-  const storedHash = hashPassword(storedPassword);
+  const storedPassword = decrypt(config.admin.password);
   
-  if (currentPassword !== storedPassword && inputHash !== storedHash) {
+  if (currentPwd !== storedPassword) {
     return res.status(400).json({ success: false, message: '当前密码错误' });
   }
+  
+  if (newPwd.length < 6) {
+    return res.status(400).json({ success: false, message: '新密码至少需要6个字符' });
+  }
+  
+  // 加密保存新密码
+  config.admin.password = encrypt(newPwd);
+  saveConfig();
+  
+  // 清除所有会话
+  sessions.clear();
+  console.log(`[安全] 用户 ${req.session.username} 修改了管理员密码`);
+  
+  res.json({ success: true, message: '密码修改成功，请重新登录' });
+});
   
   if (newPassword.length < 6) {
     return res.status(400).json({ success: false, message: '新密码至少需要6个字符' });
