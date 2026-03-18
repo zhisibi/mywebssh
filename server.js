@@ -80,14 +80,12 @@ function loadConfig() {
 }
 
 function decryptConfig(cfg) {
-  // 解密管理员密码
+  // 解密管理员密码（如果是非加密格式，转换为加密）
   if (cfg.admin && cfg.admin.password && !cfg.admin.password.includes(':')) {
     cfg.admin.password = encrypt(cfg.admin.password);
-  } else if (cfg.admin && cfg.admin.password) {
-    cfg.admin._plainPassword = decrypt(cfg.admin.password);
   }
   
-  // 解密服务器敏感信息（host, port, username, password, privateKey, passphrase）
+  // 加密服务器敏感信息（旧格式转换）
   if (cfg.servers) {
     cfg.servers = cfg.servers.map(s => {
       // 加密 host（IP 或域名）
@@ -112,14 +110,10 @@ function decryptConfig(cfg) {
       // 加密 password
       if (s.password && !s.password.includes(':')) {
         s.password = encrypt(s.password);
-      } else if (s.password) {
-        s._plainPassword = decrypt(s.password);
       }
       // 加密 privateKey
       if (s.privateKey && !s.privateKey.includes(':')) {
         s.privateKey = encrypt(s.privateKey);
-      } else if (s.privateKey) {
-        s._plainKey = decrypt(s.privateKey);
       }
       // 加密 passphrase
       if (s.passphrase && !s.passphrase.includes(':')) {
@@ -448,8 +442,8 @@ function getServerConfig(id) {
     port: port,
     username: username,
     authType: server.authType,
-    password: server._plainPassword || decrypt(server.password) || '',
-    privateKey: server._plainKey || decrypt(server.privateKey) || '',
+    password: decrypt(server.password) || '',
+    privateKey: decrypt(server.privateKey) || '',
     passphrase: decrypt(server.passphrase) || '',
     tags: server.tags,
     enabled: server.enabled
