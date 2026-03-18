@@ -133,7 +133,15 @@ npm start
 # 拉取镜像
 docker pull ghcr.io/zhisibi/mywebssh:latest
 
-# 运行容器
+# 运行容器（无需挂载 config.json，镜像自带默认配置）
+docker run -d \
+  --name webssh \
+  -p 3000:3000 \
+  ghcr.io/zhisibi/mywebssh:latest
+```
+
+如需自定义配置，可挂载 config.json：
+```bash
 docker run -d \
   --name webssh \
   -p 3000:3000 \
@@ -145,6 +153,19 @@ docker run -d \
 
 创建 `docker-compose.yml`：
 
+```yaml
+version: '3.8'
+
+services:
+  webssh:
+    image: ghcr.io/zhisibi/mywebssh:latest
+    container_name: webssh
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+```
+
+如需自定义配置：
 ```yaml
 version: '3.8'
 
