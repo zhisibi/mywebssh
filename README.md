@@ -125,6 +125,51 @@ npm start
 
 注意：当前配置文件中的密码为明文存储，建议在生产环境中自行实现加密机制。
 
+## Docker 部署
+
+### 方法一：使用 GitHub Container Registry
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/zhisibi/mywebssh:latest
+
+# 运行容器
+docker run -d \
+  --name webssh \
+  -p 3000:3000 \
+  -v $(pwd)/config.json:/app/config.json \
+  ghcr.io/zhisibi/mywebssh:latest
+```
+
+### 方法二：Docker Compose
+
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+
+services:
+  webssh:
+    image: ghcr.io/zhisibi/mywebssh:latest
+    container_name: webssh
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config.json:/app/config.json
+    restart: unless-stopped
+```
+
+启动：
+
+```bash
+docker-compose up -d
+```
+
+### 访问
+
+- Web UI: http://localhost:3000
+- 默认账号: admin / admin123
+
 ## 待优化项
 
 - WebSocket SSH 连接的详细状态提示和错误处理（当前已加入日志，便于调试）
