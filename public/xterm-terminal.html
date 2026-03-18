@@ -138,14 +138,14 @@
     async function authFetch(url, options = {}) {
       if (!authToken) {
         alert('登录已失效，请重新登录');
-        location.href = '/login.html';
+        location.href = '/index.html';
         throw new Error('未登录');
       }
       const res = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${authToken}` } });
       if (res.status === 401) {
         localStorage.removeItem('webssh_token');
         alert('登录已失效，请重新登录');
-        location.href = '/login.html';
+        location.href = '/index.html';
         throw new Error('未授权');
       }
       return res;
