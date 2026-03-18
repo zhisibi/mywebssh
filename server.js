@@ -489,6 +489,9 @@ wss.on('connection', (ws, req) => {
       let shell = null;
       
       conn.on('ready', () => {
+        // 发送连接成功消息
+        ws.send(JSON.stringify({ type: 'connected', message: 'SSH连接已建立' }));
+        
         conn.shell({ term: 'xterm-256color' }, (err, stream) => {
           if (err) {
             ws.send(JSON.stringify({ type: 'error', data: '打开终端失败: ' + err.message }));
