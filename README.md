@@ -1,6 +1,14 @@
-# WebSSH Demo
+# WebSSH 安全增强版
 
 基于 Node.js + Express + WebSocket + SSH2 的轻量级 Web SSH 管理工具。
+
+## 安全特性
+
+- 🔐 **AES-256-GCM 加密** - 密码、私钥、passphrase 全加密存储
+- 🎫 **安全 Token** - 32 字节随机 token，防止暴力破解
+- ⏱️ **会话过期** - 30 分钟无活动自动失效
+- 📝 **操作日志** - 记录登录、修改密码等敏感操作
+- 🔒 **敏感数据脱敏** - API 返回时不包含密码
 
 ## 快速开始
 

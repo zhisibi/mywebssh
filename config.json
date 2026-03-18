@@ -1,32 +1,56 @@
 {
   "admin": {
     "username": "admin",
-    "password": "admin123"
+    "password": "84c338ce96416b2a7833af4272fb1779:352300c60994e5c9f9340d81c275d403:4c2e93f0d9e07dde",
+    "_plainPassword": "admin123"
   },
   "servers": [
-      {
+    {
       "id": 1773764983748,
       "name": "test-add",
-      "host": "127.0.0.1",
-      "port": 22,
-      "username": "root",
+      "host": "e430ea9c86838ef8595f8b17c497d005:b22b5a1142fae490386cce19e784e0c1:c6e645b85f9cf13786",
+      "port": "3a0762ac526765eb47af448a97509ff8:3215e7810aa02c85c74e4fe5a52888c3:b5f3",
+      "username": "699bce5ee6c77a42c9c2a7113a7a84b4:fad01cc5193dd0de219ef0d345b1d449:e2a75f6e",
       "authType": "password",
-      "password": "pwd",
-      "enabled": true
+      "password": "1c5c3a847cf4325aaa0ce911cab9fd84:f952fdff8e8143b689fe81114321f00c:354d55",
+      "enabled": true,
+      "_host": "127.0.0.1",
+      "_port": 22,
+      "_username": "root",
+      "_plainPassword": "pwd"
     },
     {
       "id": 1773765115580,
       "name": "front-test",
-      "host": "10.0.0.8",
-      "port": 22,
-      "username": "ubuntu",
+      "host": "684749b53028af52628b965a06805395:a2b16872ce1005f712813873967a22f8:d69cf421ec402c98",
+      "port": "70c44f9b407268b35e3ea3c6411cff6a:b86074b51c9b8c9b14124cb7c1509f18:61c5",
+      "username": "4866553874dc30291012a80d80d6c9c7:9d0db376bbce1541e76c2665ed15f6f9:5c732f5b3523",
       "authType": "password",
-      "password": "123456",
+      "password": "ef2f2dc748e0d16912c71bbbcd99c129:a51479f661249c647e2111ba612a856c:2ddec010e1ac",
       "tags": [
         "前端",
         "回归"
       ],
-      "enabled": true
+      "enabled": true,
+      "_host": "10.0.0.8",
+      "_port": 22,
+      "_username": "ubuntu",
+      "_plainPassword": "123456"
+    },
+    {
+      "id": 1773832580008,
+      "name": "febian",
+      "host": "c689c5be8eaa708e2a689ea518dae8ce:1c0c1f24a83219f0590ebe2c2a54b057:e18a57749d4990a4553c69571c64",
+      "_host": "192.168.100.20",
+      "port": "7e108519d3d4f43659f1673e21aac95f:72b8110981b0440140cd09139632328d:dd26",
+      "_port": 22,
+      "username": "a95dbeab46802c6629a36ff992d5b21e:7cea045cea86614be489c0050019e4b1:93a99f99",
+      "_username": "root",
+      "authType": "password",
+      "tags": [],
+      "enabled": true,
+      "password": "6b8a246110f6730cab206d5b2847b9c4:50272a700f28ef7344a73f4ccc197971:43cbaa0b",
+      "_plainPassword": "1234"
     }
   ],
   "port": 3000
