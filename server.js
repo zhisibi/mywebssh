@@ -455,94 +455,109 @@ function getServerConfig(id) {
 // SSH 连接
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://localhost');
-  const serverId = parseInt(url.searchParams.get('server'));
-  const token = url.searchParams.get('token');
+  let serverId = parseInt(url.searchParams.get('server'));
+  let token = url.searchParams.get('token');
   
-  // 验证会话
-  if (!token || !sessions.has(token)) {
-    ws.send(JSON.stringify({ type: 'error', data: '未授权' }));
-    ws.close();
-    return;
-  }
-  
-  const session = sessions.get(token);
-  const server = getServerConfig(serverId);
-  
-  if (!server) {
-    ws.send(JSON.stringify({ type: 'error', data: '服务器不存在' }));
-    ws.close();
-    return;
-  }
-  
-  console.log(`[SSH] 用户 ${session.username} 连接服务器: ${server.name} (${server.host})`);
-  
-  const conn = new Client();
-  let shell = null;
-  
-  conn.on('ready', () => {
-    conn.shell({ term: 'xterm-256color' }, (err, stream) => {
-      if (err) {
-        ws.send(JSON.stringify({ type: 'error', data: '打开终端失败: ' + err.message }));
+  // 等待客户端发送连接信息
+  ws.once('message', (msg) => {
+    try {
+      const data = JSON.parse(msg);
+      
+      // 从消息中获取参数（支持前端格式）
+      if (data.token) token = data.token;
+      if (data.serverId) serverId = data.serverId;
+      
+      // 验证会话
+      if (!token || !sessions.has(token)) {
+        ws.send(JSON.stringify({ type: 'error', data: '未授权' }));
         ws.close();
         return;
       }
-      shell = stream;
       
-      stream.on('data', (data) => {
-        ws.send(JSON.stringify({ type: 'data', data: data.toString('base64') }));
+      const session = sessions.get(token);
+      const server = getServerConfig(serverId);
+      
+      if (!server) {
+        ws.send(JSON.stringify({ type: 'error', data: '服务器不存在' }));
+        ws.close();
+        return;
+      }
+      
+      console.log(`[SSH] 用户 ${session.username} 连接服务器: ${server.name} (${server.host})`);
+      
+      const conn = new Client();
+      let shell = null;
+      
+      conn.on('ready', () => {
+        conn.shell({ term: 'xterm-256color' }, (err, stream) => {
+          if (err) {
+            ws.send(JSON.stringify({ type: 'error', data: '打开终端失败: ' + err.message }));
+            ws.close();
+            return;
+          }
+          shell = stream;
+          
+          stream.on('data', (data) => {
+            ws.send(JSON.stringify({ type: 'data', data: data.toString('base64') }));
+          });
+          
+          stream.on('close', () => {
+            ws.send(JSON.stringify({ type: 'close', data: '连接已关闭' }));
+            ws.close();
+          });
+        });
       });
       
-      stream.on('close', () => {
-        ws.send(JSON.stringify({ type: 'close', data: '连接已关闭' }));
+      conn.on('error', (err) => {
+        console.error(`[SSH] 连接错误: ${err.message}`);
+        ws.send(JSON.stringify({ type: 'error', data: '连接错误: ' + err.message }));
         ws.close();
       });
-    });
-  });
-  
-  conn.on('error', (err) => {
-    console.error(`[SSH] 连接错误: ${err.message}`);
-    ws.send(JSON.stringify({ type: 'error', data: '连接错误: ' + err.message }));
-    ws.close();
-  });
-  
-  // 建立 SSH 连接
-  const connectConfig = {
-    host: server.host,
-    port: server.port || 22,
-    username: server.username,
-    readyTimeout: 10000
-  };
-  
-  if (server.authType === 'key' && server.privateKey) {
-    connectConfig.privateKey = server.privateKey;
-    if (server.passphrase) {
-      connectConfig.passphrase = server.passphrase;
-    }
-  } else {
-    connectConfig.password = server.password;
-  }
-  
-  conn.connect(connectConfig);
-  
-  ws.on('message', (message) => {
-    try {
-      const msg = JSON.parse(message);
-      if (msg.type === 'data' && shell) {
-        const data = Buffer.from(msg.data, 'base64').toString();
-        shell.write(data);
+      
+      // 建立 SSH 连接
+      const connectConfig = {
+        host: server.host,
+        port: server.port || 22,
+        username: server.username,
+        readyTimeout: 10000
+      };
+      
+      if (server.authType === 'key' && server.privateKey) {
+        connectConfig.privateKey = server.privateKey;
+        if (server.passphrase) {
+          connectConfig.passphrase = server.passphrase;
+        }
+      } else {
+        connectConfig.password = server.password;
       }
-      if (msg.type === 'resize') {
-        // xterm resize 支持
-        if (shell) shell.setWindow(msg.rows, msg.cols, msg.height, msg.width);
-      }
+      
+      conn.connect(connectConfig);
+      
+      ws.on('message', (message) => {
+        try {
+          const msg = JSON.parse(message);
+          if (msg.type === 'data' && shell) {
+            const data = Buffer.from(msg.data, 'base64').toString();
+            shell.write(data);
+          }
+          if (msg.type === 'resize') {
+            if (shell) shell.setWindow(msg.rows, msg.cols, msg.height, msg.width);
+          }
+        } catch (e) {
+          console.error('消息解析错误:', e);
+        }
+      });
+      
+      ws.on('close', () => {
+        console.log(`[SSH] 用户 ${session.username} 断开连接: ${server.name}`);
+        if (conn) conn.end();
+      });
+      
     } catch (e) {
-      console.error('消息解析错误:', e);
+      console.error('处理连接消息错误:', e);
+      ws.send(JSON.stringify({ type: 'error', data: '连接失败' }));
+      ws.close();
     }
-  });
-  
-  ws.on('close', () => {
-    console.log(`[SSH] 用户 ${session.username} 断开连接: ${server.name}`);
-    if (conn) conn.end();
   });
 });
 
@@ -550,8 +565,9 @@ wss.on('connection', (ws, req) => {
 
 // SFTP 列表
 app.get('/api/sftp/list', requireAuth, (req, res) => {
-  const { server: serverId, path } = req.query;
-  const server = getServerConfig(parseInt(serverId));
+  const { server: serverId, serverId: altServerId, path } = req.query;
+  const id = parseInt(serverId || altServerId);
+  const server = getServerConfig(id);
   
   if (!server) {
     return res.status(404).json({ error: '服务器不存在' });
