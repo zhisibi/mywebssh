@@ -7,9 +7,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <style>
     * { box-sizing: border-box; margin:0; padding:0; }
-    body { background:#000; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; height:100vh; overflow:hidden; }
+    body { background:#000; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; height:100vh; height:100dvh; max-height:100vh; overflow:hidden; }
+    .layout { display:flex; flex-direction:column; height:100vh; height:100dvh; max-height:100vh; }
     .status-bar {
-      position:fixed; top:0; left:0; right:0; z-index:20;
+      position:relative; z-index:20;
       background:rgba(17,24,39,.92); border-bottom:1px solid rgba(255,255,255,.12);
       padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px;
     }
@@ -23,8 +24,8 @@
     .disconnected { background:#7f1d1d; color:#fecaca; }
     .btn { border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#fff; border-radius:8px; padding:7px 10px; cursor:pointer; }
     .btn:hover { background:rgba(255,255,255,.14); }
-    #terminalWrap { position:absolute; inset:56px 0 0 0; padding:8px; }
-    #terminal { width:100%; height:100%; }
+    .terminal-container { flex:1; position:relative; overflow:hidden; }
+    #terminal { width:100%; height:100%; padding:8px; }
     .overlay {
       position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.7);
       display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px;
@@ -76,45 +77,50 @@
     }
     @media (max-width: 768px) {
       .status-bar { padding:8px 10px; flex-wrap:wrap; align-items:flex-start; }
-      .server-info { width:100%; }
+      .server-info { width:100%; margin-bottom:8px; }
       .actions { width:100%; justify-content:space-between; }
       .btn { padding:8px 10px; font-size:12px; }
-      #terminalWrap { inset:146px 0 0 0; padding:4px; }
       .mobile-keypad { display:block; }
     }
   </style>
 </head>
 <body>
-  <div class="status-bar">
-    <div class="server-info">
-      <div id="serverName" class="server-name">正在准备终端...</div>
-      <div id="serverDetails" class="server-details"></div>
+  <div class="layout">
+    <div class="status-bar">
+      <div class="server-info">
+        <div id="serverName" class="server-name">正在准备终端...</div>
+        <div id="serverDetails" class="server-details"></div>
+      </div>
+      <div class="actions">
+        <span id="connectionStatus" class="chip connecting">连接中</span>
+        <button class="btn" id="reconnectBtn" onclick="reconnect()" style="display:none;">重连</button>
+        <button class="btn" onclick="closeTerminal()">关闭</button>
+      </div>
     </div>
-    <div class="actions">
-      <span id="connectionStatus" class="chip connecting">连接中</span>
-      <button class="btn" id="reconnectBtn" onclick="reconnect()" style="display:none;">重连</button>
-      <button class="btn" onclick="closeTerminal()">关闭</button>
-    </div>
-  </div>
-  <div id="terminalWrap"><div id="terminal"></div></div>
-  <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
 
-  <div class="mobile-keypad">
-    <div class="row">
-      <button class="key" onclick="sendEsc()">ESC</button>
-      <button class="key" onclick="sendTab()">TAB</button>
-      <button class="key ctrl" onclick="sendCtrl('C')">Ctrl+C</button>
-      <button class="key" onclick="sendCtrl('V')">Ctrl+V</button>
-      <button class="key" onclick="sendCtrl('Z')">Ctrl+Z</button>
+    <div class="terminal-container">
+      <div id="terminal"></div>
     </div>
-    <div class="row">
-      <button class="key" onclick="sendArrow('UP')">↑</button>
-      <button class="key" onclick="sendArrow('DOWN')">↓</button>
-      <button class="key" onclick="sendArrow('LEFT')">←</button>
-      <button class="key" onclick="sendArrow('RIGHT')">→</button>
-      <button class="key" onclick="sendCtrl('L')">Ctrl+L</button>
+
+    <div class="mobile-keypad">
+      <div class="row">
+        <button class="key" onclick="sendEsc()">ESC</button>
+        <button class="key" onclick="sendTab()">TAB</button>
+        <button class="key ctrl" onclick="sendCtrl('C')">Ctrl+C</button>
+        <button class="key" onclick="sendCtrl('V')">Ctrl+V</button>
+        <button class="key" onclick="sendCtrl('Z')">Ctrl+Z</button>
+      </div>
+      <div class="row">
+        <button class="key" onclick="sendArrow('UP')">↑</button>
+        <button class="key" onclick="sendArrow('DOWN')">↓</button>
+        <button class="key" onclick="sendArrow('LEFT')">←</button>
+        <button class="key" onclick="sendArrow('RIGHT')">→</button>
+        <button class="key" onclick="sendCtrl('L')">Ctrl+L</button>
+      </div>
     </div>
   </div>
+
+  <div id="loadingOverlay" class="overlay">正在连接 SSH 服务器...</div>
 
   <script src="https://unpkg.com/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -144,7 +150,6 @@
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
-
 
     window.addEventListener('resize', () => {
       fitAddon.fit();
