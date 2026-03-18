@@ -183,12 +183,8 @@ function requireAuth(req, res, next) {
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   
-  // 获取解密后的密码进行验证
-  let storedPassword = config.admin._plainPassword;
-  if (!storedPassword && config.admin.password) {
-    // 如果没有缓存，尝试解密
-    storedPassword = decrypt(config.admin.password);
-  }
+  // 直接解密密码进行验证
+  const storedPassword = decrypt(config.admin.password);
   
   if (username === config.admin.username && password === storedPassword) {
     const token = generateToken();
