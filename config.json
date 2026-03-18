@@ -8,17 +8,32 @@
     {
       "id": 1773839813662,
       "name": "在线测试",
-      "host": "7fc41ae8d52bf5592620248804c7725b:024b6b849a1f412f2f2508df847bc771:5427bfb38ad850582fbc05ee85ce",
+      "host": "ff035e47eb80b3c0bf16b532cb2a8580:f23fec67f6e2152b0f2073878d883e47:3dc981062409c105e05d967f59de",
       "_host": "192.168.100.20",
-      "port": "b25ca36c24efeb91c5919b15eac76899:4d1dbe106ef92cf3fd81638801480893:c120",
+      "port": "989ffe7dbb9a24a77860b8fa83e437cb:abdf48e6449925eeb28c36bf6dd4c5bb:6e7b",
       "_port": 22,
-      "username": "4bf8130bfa02a6ef32bc28f9be3fd9a7:e9f79bd75313fd6c0eb5003578295ae5:ae61fe04cf",
-      "_username": "admin",
+      "username": "39d2ff000f897b60d6803e803b6c858e:c0cec85359263cf8830c1f7e19b0f530:601bf1e5",
+      "_username": "root",
       "authType": "password",
       "tags": [],
       "enabled": true,
-      "password": "57b18e61ee58116789270cb1182924e7:7db3033f1a7cfc93772dad070edab298:625bcf86",
+      "password": "a5fc6aa7a8a800c6b009b0782e9dfaae:3bf10972b02ed2f82602a3876744e505:18af2234",
       "_plainPassword": "1234"
+    },
+    {
+      "id": 1773840567330,
+      "name": "test",
+      "host": "c052ef2d082695f969f45635c60908a9:37136f47d8eb82eb5a5bca707d6d2f84:6946a338be365181e3",
+      "_host": "127.0.0.1",
+      "port": "25da6b6952b26ab2cf4a71c3c0071e19:d6eb6cf608bc59894e5663cf4f0e4590:7c8e",
+      "_port": 22,
+      "username": "97ffb7164b8aeff06df960c0a1abc067:57bd511b2294b8983bf15f7eaecec921:f4d417bc",
+      "_username": "root",
+      "authType": "password",
+      "tags": [],
+      "enabled": true,
+      "password": "c269ae9e2c9fe2a46696f063301fcd95:d862923b737c6b9c4f8124c151930a58:8b4af78937b030",
+      "_plainPassword": "test123"
     }
   ],
   "port": 3000
