@@ -6,17 +6,18 @@
   <title>WebSSH 控制面板</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f5f7fb; color:#111827; }
+    body { margin: 0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f5f7fb; color:#111827; }
     .header { background:#111827; color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; }
     .main-content { padding:24px; }
     .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
     .servers-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
-    .server-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; box-shadow:0 4px 18px rgba(0,0,0,.04); }
-    .server-header { display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
-    .server-icon { font-size:28px; }
-    .server-name { font-size:18px; font-weight:700; }
-    .server-address { color:#6b7280; font-size:13px; }
-    .server-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .server-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; box-shadow:0 4px 18px rgba(0,0,0,.04); display:flex; flex-direction:column; gap:14px; }
+    .server-header { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .server-icon { font-size:24px; }
+    .server-name { font-size:16px; font-weight:700; }
+    .server-address { font-size:12px; }
+    .server-info { font-size:12px; color:#6b7280; line-height:1.4; }
+    .server-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .server-btn, .add-server-btn, .logout-btn, .modal-footer button { border:none; border-radius:10px; padding:10px 14px; cursor:pointer; }
     .server-btn.ssh { background:#111827; color:#fff; }
     .server-btn.ftp { background:#4f46e5; color:#fff; }
@@ -24,24 +25,47 @@
     .server-btn.delete { background:#dc2626; color:#fff; }
     .add-server-btn { background:#10b981; color:#fff; }
     .logout-btn { background:#374151; color:#fff; }
-    .server-status { display:flex; align-items:center; gap:8px; font-size:14px; }
-    .status-indicator { width:10px; height:10px; border-radius:999px; display:inline-block; }
+    .server-status { display:flex; align-items:center; gap:8px; font-size:13px; margin-top:auto; }
+    .status-indicator { width:8px; height:8px; border-radius:999px; display:inline-block; }
     .status-indicator.online { background:#10b981; }
     .status-indicator.offline { background:#ef4444; }
     .modal { position:fixed; inset:0; background:rgba(17,24,39,.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
-    .modal-content { width:520px; max-width:95vw; background:#fff; border-radius:16px; overflow:hidden; }
+    .modal-content { width:520px; max-width:95vw; max-height:90vh; background:#fff; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
     .modal-header, .modal-footer { padding:16px 18px; border-bottom:1px solid #e5e7eb; }
-    .modal-footer { border-bottom:none; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px; }
-    .modal-body { padding:18px; }
+    .modal-footer { border-bottom:none; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px; flex-shrink:0; overflow-wrap: overflow-x:auto; }
+    .modal-body { padding:18px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch; }
     .form-group { margin-bottom:14px; }
     .form-group label { display:block; font-size:14px; margin-bottom:6px; color:#374151; }
     .form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font:inherit; }
     .close { cursor:pointer; font-size:24px; }
+    @media (max-width: 768px) {
+      .header { padding:12px 16px; display:flex; flex-direction:row; align-items:center; gap:12px; }
+      .header h1 { font-size:16px; margin:0; min-width:0; }
+      .logout-btn { padding:8px 12px; font-size:12px; }
+      .section-header { flex-direction:column; align-items:flex-start; gap:12px; }
+      .section-header h2 { font-size:18px; margin:0; }
+      .add-server-btn { width:100%; }
+      .servers-grid { grid-template-columns:1fr; gap:12px; }
+      .server-card { padding:12px; }
+      .server-header { flex-direction:column; gap:4px; align-items:flex-start; margin-bottom:6px; }
+      .server-icon { font-size:20px; }
+      .server-name { font-size:15px; }
+      .server-actions { flex-wrap:wrap; gap:6px; }
+      .server-btn, .add-server-btn, .logout-btn, .modal-footer button { padding:8px 12px; font-size:13px; }
+      .server-status { font-size:12px; }
+      .modal-content { width:95vw; max-height:85vh; }
+      .modal-body { padding:12px; }
+      .modal-header, .modal-footer { padding:12px 14px; display:flex; flex-direction:row; align-items:center; gap:8px; }
+      .modal-header h3 { margin:0; font-size:15px; }
+      .close { font-size:20px; }
+      .form-group label { font-size:13px; margin-bottom:4px; }
+      .form-group input, .form-group select, .form-group textarea { padding:8px 10px; font-size:13px; }
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1 style="margin:0;font-size:22px;">WebSSH 控制面板</h1>
+    <h1 style="margin:0;">WebSSH 控制面板</h1>
     <button class="logout-btn" onclick="logout()">退出登录</button>
   </div>
 
@@ -78,12 +102,14 @@
         servers.forEach(server => {
           const card = document.createElement('div');
           card.className = 'server-card';
+          const statusText = server.enabled ? '已启用' : '已禁用';
+          const statusClass = server.enabled ? 'online' : 'offline';
           card.innerHTML = `
             <div class="server-header">
               <span class="server-icon">🖥️</span>
               <div>
                 <div class="server-name">${escapeHtml(server.name)}</div>
-                <div class="server-address">${escapeHtml(server.username)}@${escapeHtml(server.host)}:${server.port || 22}</div>
+                <div class="server-info">${escapeHtml(server.username)}@${escapeHtml(server.host)}:${server.port || 22}</div>
               </div>
             </div>
             <div class="server-actions">
@@ -93,18 +119,18 @@
               <button class="server-btn delete" onclick="deleteServer(${server.id})">删除</button>
             </div>
             <div class="server-status">
-              <span class="status-indicator ${server.enabled ? 'online' : 'offline'}"></span>
-              <span>${server.enabled ? '已启用' : '已禁用'}</span>
+              <span class="status-indicator ${statusClass}"></span>
+              <span>${escapeHtml(statusText)}</span>
             </div>`;
           grid.appendChild(card);
         });
+
       } catch (error) {
         console.error('加载服务器列表失败:', error);
         alert('加载服务器列表失败');
       }
     }
 
-    function escapeHtml(str='') { return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
     function connectSSH(serverId) { window.open(`/xterm-terminal.html?server=${serverId}`, '_blank'); }
     function openFTP(serverId) { window.open(`/sftp-browser.html?server=${serverId}`, '_blank'); }
 
@@ -113,18 +139,28 @@
       modal.className = 'modal';
       modal.innerHTML = `
         <div class="modal-content">
-          <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;"><h3 style="margin:0;">添加服务器</h3><span class="close" onclick="closeModal()">&times;</span></div>
+          <div class="modal-header">
+            <h3>添加服务器</h3>
+            <span class="close" onclick="closeModal()">×</span>
+          </div>
           <form id="serverForm" class="modal-body">
-            <div class="form-group"><label>服务器名称</label><input name="name" required></div>
-            <div class="form-group"><label>主机地址</label><input name="host" required></div>
+            <div class="form-group"><label>服务器名称</label><input name="name" required placeholder="例如：测试服务器"></div>
+            <div class="form-group"><label>主机地址</label><input name="host" required placeholder="192.168.1.1"></div>
             <div class="form-group"><label>端口</label><input name="port" type="number" value="22" required></div>
-            <div class="form-group"><label>用户名</label><input name="username" required></div>
-            <div class="form-group"><label>认证方式</label><select name="authType" onchange="toggleAuthField()"><option value="password">密码认证</option><option value="key">密钥认证</option></select></div>
-            <div class="form-group" id="passwordField"><label>密码</label><input name="password" type="password"></div>
-            <div class="form-group" id="keyField" style="display:none;"><label>私钥</label><textarea name="privateKey" rows="5"></textarea></div>
-            <div class="form-group"><label>标签（逗号分隔）</label><input name="tags"></div>
+            <div class="form-group"><label>用户名</label><input name="username" required placeholder="root"></div>
+            <div class="form-group"><label>认证方式</label>
+            <select name="authType" onchange="toggleAuthField()">
+              <option value="password">密码认证</option>
+              <option value="key">密钥认证</option>
+            </select>
+            <div class="form-group" id="passwordField"><label>密码</label><input type="password" name="password" placeholder="服务器密码"></div>
+            <div class="form-group" id="keyField" style="display:none;"><label>私钥</label><textarea name="privateKey" rows="4" placeholder="粘贴 SSH 私钥"></textarea></div>
+            <div class="form-group"><label>标签（逗号分隔）</label><input name="tags" placeholder="测试,生产,开发"></div>
           </form>
-          <div class="modal-footer"><button type="button" onclick="closeModal()">取消</button><button type="submit" form="serverForm" style="background:#10b981;color:#fff;">保存</button></div>
+          <div class="modal-footer">
+            <button type="button" onclick="closeModal()">取消</button>
+            <button type="submit" style="background:#10b981;color:#fff;">保存</button>
+          </div>
         </div>`;
       document.body.appendChild(modal);
       document.getElementById('serverForm').addEventListener('submit', handleAddServer);
@@ -138,31 +174,50 @@
 
       const modal = document.createElement('div');
       modal.className = 'modal';
+      const isPassword = server.authType === 'password';
       modal.innerHTML = `
         <div class="modal-content">
-          <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;"><h3 style="margin:0;">编辑服务器</h3><span class="close" onclick="closeModal()">&times;</span></div>
+          <div class="modal-header">
+            <h3>编辑服务器</h3>
+            <span class="close" onclick="closeModal()">×</span>
+          </div>
           <form id="editServerForm" class="modal-body">
             <input type="hidden" name="id" value="${server.id}">
-            <div class="form-group"><label>服务器名称</label><input name="name" value="${escapeHtml(server.name)}" required></div>
-            <div class="form-group"><label>主机地址</label><input name="host" value="${escapeHtml(server.host)}" required></div>
+            <div class="form-group"><label>服务器名称</label><input name="name" required value="${escapeHtml(server.name)}"></div>
+            <div class="form-group"><label>主机地址</label><input name="host" required value="${escapeHtml(server.host)}"></div>
             <div class="form-group"><label>端口</label><input name="port" type="number" value="${server.port || 22}" required></div>
-            <div class="form-group"><label>用户名</label><input name="username" value="${escapeHtml(server.username)}" required></div>
-            <div class="form-group"><label>认证方式</label><select name="authType" onchange="toggleAuthField()"><option value="password" ${server.authType==='password'?'selected':''}>密码认证</option><option value="key" ${server.authType==='key'?'selected':''}>密钥认证</option></select></div>
-            <div class="form-group" id="passwordField" style="display:${server.authType==='password'?'block':'none'};"><label>密码</label><input name="password" type="password" value="${escapeHtml(server.password || '')}"></div>
-            <div class="form-group" id="keyField" style="display:${server.authType==='key'?'block':'none'};"><label>私钥</label><textarea name="privateKey" rows="5">${escapeHtml(server.privateKey || '')}</textarea></div>
+            <div class="form-group"><label>用户名</label><input name="username" required value="${escapeHtml(server.username)}"></div>
+            <div class="form-group"><label>认证方式</label>
+            <select name="authType" onchange="toggleAuthField()">
+              <option value="password" ${isPassword ? 'selected' : ''}>密码认证</option>
+              <option value="key" ${!isPassword ? 'selected' : ''}>密钥认证</option>
+            </select>
+            <div class="form-group" id="passwordField" style="display:${isPassword ? 'block' : 'none'};"><label>密码</label><input type="password" name="password" value="${escapeHtml(server.password || '')}"></div>
+            <div class="form-group" id="keyField" style="display:${!isPassword ? 'block' : 'none'};"><label>私钥</label><textarea name="privateKey" rows="4">${escapeHtml(server.privateKey || '')}</textarea></div>
             <div class="form-group"><label>标签</label><input name="tags" value="${escapeHtml((server.tags || []).join(', '))}"></div>
-            <div class="form-group"><label>启用状态</label><select name="enabled"><option value="true" ${server.enabled?'selected':''}>启用</option><option value="false" ${!server.enabled?'selected':''}>禁用</option></select></div>
+            <div class="form-group"><label>启用状态</label>
+              <select name="enabled">
+                <option value="true" ${server.enabled ? 'selected' : ''}>启用</option>
+                <option value="false" ${!server.enabled ? 'selected' : ''}>禁用</option>
+              </select>
+            </div>
           </form>
-          <div class="modal-footer"><button type="button" onclick="closeModal()">取消</button><button type="submit" form="editServerForm" style="background:#f59e0b;color:#fff;">保存</button></div>
+          <div class="modal-footer">
+            <button type="button" onclick="closeModal()">取消</button>
+            <button type="submit" form="editServerForm" style="background:#f59e0b;color:#fff;">保存</button>
+          </div>
         </div>`;
       document.body.appendChild(modal);
       document.getElementById('editServerForm').addEventListener('submit', handleEditServer);
     }
 
     function toggleAuthField() {
-      const authType = document.querySelector('.modal select[name="authType"]').value;
-      document.getElementById('passwordField').style.display = authType === 'password' ? 'block' : 'none';
-      document.getElementById('keyField').style.display = authType === 'key' ? 'block' : 'none';
+      const select = document.querySelector('.modal select[name="authType"]');
+      const isPassword = select.value === 'password';
+      const passwordField = document.getElementById('passwordField');
+      const keyField = document.getElementById('keyField');
+      passwordField.style.display = isPassword ? 'block' : 'none';
+      keyField.style.display = isPassword ? 'none' : 'block';
     }
 
     async function handleAddServer(event) {
@@ -176,8 +231,9 @@
         authType: formData.get('authType'),
         tags: (formData.get('tags') || '').split(',').map(v => v.trim()).filter(Boolean)
       };
-      if (serverData.authType === 'password') serverData.password = formData.get('password') || '';
-      else serverData.privateKey = formData.get('privateKey') || '';
+      const isPassword = serverData.authType === 'password';
+      serverData[isPassword ? 'password' : 'privateKey'] = formData.get(isPassword ? 'password' : 'privateKey') || '';
+      if (serverData.authType !== 'password' && !serverData.privateKey) serverData.privateKey = formData.get('privateKey') || '';
 
       const response = await authFetch('/api/servers', {
         method: 'POST',
@@ -185,7 +241,7 @@
         body: JSON.stringify(serverData)
       });
       const data = await response.json();
-      if (!response.ok || !data.success) return alert(data.message || '添加服务器失败');
+      if (!data.success) return alert(data.message || '添加服务器失败');
       closeModal();
       await loadServers();
       alert('服务器添加成功');
@@ -194,18 +250,20 @@
     async function handleEditServer(event) {
       event.preventDefault();
       const formData = new FormData(event.target);
-      const id = formData.get('id');
-      const serverData = {
-        name: formData.get('name'),
-        host: formData.get('host'),
-        port: parseInt(formData.get('port')),
-        username: formData.get('username'),
-        authType: formData.get('authType'),
-        enabled: formData.get('enabled') === 'true',
-        tags: (formData.get('tags') || '').split(',').map(v => v.trim()).filter(Boolean)
-      };
-      if (serverData.authType === 'password') serverData.password = formData.get('password') || '';
-      else serverData.privateKey = formData.get('privateKey') || '';
+      const id = parseInt(formData.get('id'));
+      const serverData = { id };
+      ['name', 'host', 'port', 'username', 'authType', 'enabled'].forEach(k => {
+        const v = formData.get(k);
+        if (k === 'port') serverData[k] = parseInt(v);
+        else if (k === 'enabled') serverData[k] = v === 'true';
+        else serverData[k] = v;
+      });
+      const isPassword = serverData.authType === 'password';
+      const password = formData.get('password') || '';
+      const privateKey = formData.get('privateKey') || '';
+      if (isPassword && password) serverData.password = password;
+      else if (!isPassword && privateKey) serverData.privateKey = privateKey;
+      serverData.tags = (formData.get('tags') || '').split(',').map(v => v.trim()).filter(Boolean);
 
       const response = await authFetch(`/api/servers/${id}`, {
         method: 'PUT',
@@ -213,7 +271,7 @@
         body: JSON.stringify(serverData)
       });
       const data = await response.json();
-      if (!response.ok || !data.success) return alert(data.message || '更新失败');
+      if (!data.success) return alert(data.message || '更新失败');
       closeModal();
       await loadServers();
       alert('服务器更新成功');
@@ -223,7 +281,7 @@
       if (!confirm('确定要删除这个服务器吗？')) return;
       const response = await authFetch(`/api/servers/${serverId}`, { method: 'DELETE' });
       const data = await response.json();
-      if (!response.ok || !data.success) return alert(data.message || '删除失败');
+      if (!data.success) return alert(data.message || '删除失败');
       await loadServers();
       alert('服务器删除成功');
     }
@@ -234,7 +292,7 @@
     }
 
     async function logout() {
-      try { await authFetch('/api/logout', { method: 'POST' }); } catch (_) {}
+      try { await authFetch('/api/logout', { method:POST' }); } catch (_) {}
       localStorage.removeItem('webssh_token');
       window.location.href = '/login.html';
     }
