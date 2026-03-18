@@ -18,46 +18,34 @@ const configKeyPath = path.join(__dirname, '.key'); // 加密密钥文件
 
 // ============ 安全模块 ============
 
-// 生成或加载加密密钥
-function getEncryptionKey() {
-  if (fs.existsSync(configKeyPath)) {
-    return fs.readFileSync(configKeyPath, 'utf8');
-  }
-  // 生成新的 32 字节密钥
-  const key = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(configKeyPath, key, { mode: 0o600 });
-  return key;
-}
+// 硬编码密钥（生产环境建议使用环境变量）
+const FIXED_KEY = 'webssh-secure-key-2024-32bytes!';
 
-const ENCRYPTION_KEY = getEncryptionKey();
-
-// AES-256-GCM 加密
 function encrypt(text) {
   if (!text) return '';
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(FIXED_KEY, 'utf8').slice(0, 32), iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   const authTag = cipher.getAuthTag();
   return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
 }
 
-// AES-256-GCM 解密
 function decrypt(encryptedText) {
   if (!encryptedText) return '';
   try {
     const parts = encryptedText.split(':');
-    if (parts.length !== 3) return encryptedText; // 非加密数据直接返回
+    if (parts.length !== 3) return encryptedText;
     const iv = Buffer.from(parts[0], 'hex');
     const authTag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];
-    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(FIXED_KEY, 'utf8').slice(0, 32), iv);
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch (e) {
-    console.error('解密失败:', e.message);
+    console.log('解密失败:', e.message);
     return '';
   }
 }
@@ -183,8 +171,13 @@ function requireAuth(req, res, next) {
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   
-  // 直接解密密码进行验证
-  const storedPassword = decrypt(config.admin.password);
+  // 尝试解密密码进行验证
+  let storedPassword = decrypt(config.admin.password);
+  
+  // 如果解密失败或结果为空，尝试直接匹配（明文密码）
+  if (!storedPassword) {
+    storedPassword = config.admin.password;
+  }
   
   if (username === config.admin.username && password === storedPassword) {
     const token = generateToken();
