@@ -59,6 +59,31 @@ app.post('/api/logout', requireAuth, (req, res) => {
   res.json({ success: true, message: '已退出登录' });
 });
 
+// 修改管理员密码
+app.post('/api/admin/password', requireAuth, (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: '请提供旧密码和新密码' });
+  }
+  
+  if (oldPassword !== config.admin.password) {
+    return res.status(400).json({ success: false, message: '旧密码错误' });
+  }
+  
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: '新密码至少需要6个字符' });
+  }
+  
+  config.admin.password = newPassword;
+  saveConfig();
+  
+  // 清除所有会话，强制重新登录
+  sessions.clear();
+  
+  res.json({ success: true, message: '密码修改成功，请重新登录' });
+});
+
 app.get('/api/servers', requireAuth, (req, res) => {
   res.json(config.servers.filter(server => server.enabled));
 });
