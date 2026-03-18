@@ -211,7 +211,14 @@
             term.write(`\r\n*** ${message.message} ***\r\n`);
             break;
           case 'data':
-            term.write(message.data || '');
+            // 解码 base64
+            if (message.data) {
+              try {
+                term.write(atob(message.data));
+              } catch {
+                term.write(message.data);
+              }
+            }
             break;
           case 'error':
             updateStatus('disconnected', '连接错误');
@@ -248,7 +255,7 @@
 
     term.onData((data) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data }));
+        ws.send(JSON.stringify({ type: 'data', data: btoa(data) }));
       }
     });
 
@@ -282,7 +289,7 @@
     }
     function sendKey(key) {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data: key }));
+        ws.send(JSON.stringify({ type: 'data', data: btoa(key) }));
       }
     }
 
