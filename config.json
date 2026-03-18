@@ -1,8 +1,25 @@
 {
   "admin": {
     "username": "admin",
-    "password": "3c9e77844759af59218851ff870b9090:7a68f7faf620d620e1d1662ec2c1f2e8:c80997d79c924fa0"
+    "password": "3c9e77844759af59218851ff870b9090:7a68f7faf620d620e1d1662ec2c1f2e8:c80997d79c924fa0",
+    "_plainPassword": "admin123"
   },
-  "servers": [],
+  "servers": [
+    {
+      "id": 1773839813662,
+      "name": "在线测试",
+      "host": "7fc41ae8d52bf5592620248804c7725b:024b6b849a1f412f2f2508df847bc771:5427bfb38ad850582fbc05ee85ce",
+      "_host": "192.168.100.20",
+      "port": "b25ca36c24efeb91c5919b15eac76899:4d1dbe106ef92cf3fd81638801480893:c120",
+      "_port": 22,
+      "username": "4bf8130bfa02a6ef32bc28f9be3fd9a7:e9f79bd75313fd6c0eb5003578295ae5:ae61fe04cf",
+      "_username": "admin",
+      "authType": "password",
+      "tags": [],
+      "enabled": true,
+      "password": "57b18e61ee58116789270cb1182924e7:7db3033f1a7cfc93772dad070edab298:625bcf86",
+      "_plainPassword": "1234"
+    }
+  ],
   "port": 3000
 }

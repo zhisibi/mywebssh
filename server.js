@@ -313,6 +313,42 @@ app.post('/api/servers', requireAuth, (req, res) => {
   });
 });
 
+// 导入/恢复服务器（覆盖模式）
+app.put('/api/servers/import', requireAuth, (req, res) => {
+  const { servers } = req.body;
+  
+  if (!servers || !Array.isArray(servers)) {
+    return res.status(400).json({ success: false, message: '无效的数据格式' });
+  }
+  
+  // 加密并保存每个服务器
+  const encryptedServers = servers.map(s => ({
+    id: s.id || Date.now() + Math.random(),
+    name: s.name,
+    host: encrypt(s.host || ''),
+    _host: s.host || '',
+    port: encrypt(String(s.port || 22)),
+    _port: s.port || 22,
+    username: encrypt(s.username || ''),
+    _username: s.username || '',
+    authType: s.authType || 'password',
+    password: s.password ? encrypt(s.password) : '',
+    _plainPassword: s.password || '',
+    privateKey: s.privateKey ? encrypt(s.privateKey) : '',
+    _plainKey: s.privateKey || '',
+    passphrase: s.passphrase ? encrypt(s.passphrase) : '',
+    tags: s.tags || [],
+    enabled: true
+  }));
+  
+  config.servers = encryptedServers;
+  saveConfig();
+  
+  console.log(`[安全] 用户 ${req.session.username} 导入了 ${servers.length} 个服务器`);
+  
+  res.json({ success: true, message: `成功导入 ${servers.length} 个服务器` });
+});
+
 // 更新服务器
 app.put('/api/servers/:id', requireAuth, (req, res) => {
   const id = parseInt(req.params.id);
@@ -395,12 +431,28 @@ function getServerConfig(id) {
   const server = config.servers.find(s => s.id === id);
   if (!server) return null;
   
+  // 兼容：优先使用解密后的明文（_开头），如果没有则解密
+  let host = server._host;
+  let port = server._port;
+  let username = server._username;
+  
+  // 如果没有 _ 开头的明文，尝试解密
+  if (!host && server.host) {
+    host = server.host.includes(':') ? decrypt(server.host) : server.host;
+  }
+  if (!port && server.port) {
+    port = typeof server.port === 'number' ? server.port : (server.port.includes(':') ? parseInt(decrypt(String(server.port))) : parseInt(server.port));
+  }
+  if (!username && server.username) {
+    username = server.username.includes(':') ? decrypt(server.username) : server.username;
+  }
+  
   return {
     id: server.id,
     name: server.name,
-    host: server._host || server.host,
-    port: server._port || server.port,
-    username: server._username || server.username,
+    host: host,
+    port: port,
+    username: username,
     authType: server.authType,
     password: server._plainPassword || decrypt(server.password) || '',
     privateKey: server._plainKey || decrypt(server.privateKey) || '',

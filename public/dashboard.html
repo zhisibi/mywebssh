@@ -333,16 +333,18 @@
         try {
           const backup = JSON.parse(e.target.result);
           if (!backup.servers || !Array.isArray(backup.servers)) return alert('无效的备份文件');
-          for (const server of backup.servers) {
-            await authFetch('/api/servers', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(server)
-            });
-          }
+          
+          // 使用覆盖导入API
+          const response = await authFetch('/api/servers/import', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ servers: backup.servers })
+          });
+          const result = await response.json();
+          
           closeModal();
           await loadServers();
-          alert('恢复成功');
+          alert(result.message || '恢复成功');
         } catch (err) {
           alert('恢复失败: ' + err.message);
         }
