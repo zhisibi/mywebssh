@@ -238,22 +238,6 @@ app.post('/api/admin/password', requireAuth, (req, res) => {
   
   res.json({ success: true, message: '密码修改成功，请重新登录' });
 });
-  
-  if (newPassword.length < 6) {
-    return res.status(400).json({ success: false, message: '新密码至少需要6个字符' });
-  }
-  
-  // 加密保存新密码
-  config.admin.password = encrypt(newPassword);
-  config.admin._plainPassword = newPassword;
-  saveConfig();
-  
-  // 清除所有会话
-  sessions.clear();
-  console.log(`[安全] 用户 ${req.session.username} 修改了管理员密码`);
-  
-  res.json({ success: true, message: '密码修改成功，请重新登录' });
-});
 
 // 获取服务器列表
 app.get('/api/servers', requireAuth, (req, res) => {
