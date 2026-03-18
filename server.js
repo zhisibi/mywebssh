@@ -501,7 +501,7 @@ wss.on('connection', (ws, req) => {
           shell = stream;
           
           stream.on('data', (data) => {
-            ws.send(JSON.stringify({ type: 'data', data: data.toString('base64') }));
+            ws.send(JSON.stringify({ type: 'data', data: data.toString('utf8') }));
           });
           
           stream.on('close', () => {
@@ -540,8 +540,7 @@ wss.on('connection', (ws, req) => {
         try {
           const msg = JSON.parse(message);
           if (msg.type === 'data' && shell) {
-            const data = Buffer.from(msg.data, 'base64').toString();
-            shell.write(data);
+            shell.write(msg.data);
           }
           if (msg.type === 'resize') {
             if (shell) shell.setWindow(msg.rows, msg.cols, msg.height, msg.width);

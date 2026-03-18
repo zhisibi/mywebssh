@@ -211,13 +211,9 @@
             term.write(`\r\n*** ${message.message} ***\r\n`);
             break;
           case 'data':
-            // 解码 base64
+            // 直接写入（UTF-8）
             if (message.data) {
-              try {
-                term.write(atob(message.data));
-              } catch {
-                term.write(message.data);
-              }
+              term.write(message.data);
             }
             break;
           case 'error':
@@ -255,7 +251,7 @@
 
     term.onData((data) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'data', data: btoa(data) }));
+        ws.send(JSON.stringify({ type: 'data', data: data }));
       }
     });
 
@@ -289,7 +285,7 @@
     }
     function sendKey(key) {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'data', data: btoa(key) }));
+        ws.send(JSON.stringify({ type: 'data', data: key }));
       }
     }
 
