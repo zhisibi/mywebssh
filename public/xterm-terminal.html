@@ -75,9 +75,12 @@
       color:#f87171;
     }
     @media (max-width: 768px) {
-      .status-bar { padding:6px 10px; }
+      .status-bar { padding:6px 10px; flex-direction:column; align-items:flex-start; gap:6px; }
       .server-info { margin:0; font-size:13px; }
+      .actions { width:100%; justify-content:flex-end; gap:8px; }
       .btn { padding:6px 10px; font-size:12px; }
+      .mobile-keypad { padding:6px 8px; }
+      .mobile-keypad .key { min-width:40px; height:40px; font-size:13px; }
     }
   </style>
 </head>
@@ -157,8 +160,11 @@
     function showLoading(text = '正在连接 SSH 服务器...') { loadingOverlay.textContent = text; loadingOverlay.style.display = 'flex'; }
     function hideLoading() { loadingOverlay.style.display = 'none'; }
     function updateStatus(state, text) {
-      statusEl.className = `chip ${state}`;
-      statusEl.textContent = text;
+      if (statusEl && statusEl.parentNode) {
+        statusEl.className = `chip ${state}`;
+        statusEl.textContent = text;
+        statusEl.style.display = 'inline-block';
+      }
     }
 
     async function authFetch(url, options = {}) {
