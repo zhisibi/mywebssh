@@ -11,7 +11,7 @@ RUN npm install --production
 # 复制应用代码（排除 node_modules）
 COPY . .
 
-# 确保配置文件存在（使用默认值）
+# 确保配置文件存在
 RUN if [ ! -f config.json ]; then \
     echo '{"admin":{"username":"admin","password":"admin123"},"servers":[],"port":3000}' > config.json; \
     fi
