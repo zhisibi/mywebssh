@@ -1,8 +1,7 @@
 {
   "admin": {
     "username": "admin",
-    "password": "547a18112efe80f6307d2ec8c0da1935:6849c02f27fa2e9a7ffbe322b0c7e6da:a95064d487963b6b",
-    "_plainPassword": "admin123"
+    "password": "3c9e77844759af59218851ff870b9090:7a68f7faf620d620e1d1662ec2c1f2e8:c80997d79c924fa0"
   },
   "servers": [],
   "port": 3000

@@ -20,11 +20,12 @@ const configKeyPath = path.join(__dirname, '.key'); // 加密密钥文件
 
 // 硬编码密钥（生产环境建议使用环境变量）
 const FIXED_KEY = 'webssh-secure-key-2024-32bytes!';
+const FIXED_KEY_32 = FIXED_KEY.padEnd(32, '0').slice(0, 32);
 
 function encrypt(text) {
   if (!text) return '';
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(FIXED_KEY, 'utf8').slice(0, 32), iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', FIXED_KEY_32, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   const authTag = cipher.getAuthTag();
@@ -39,7 +40,7 @@ function decrypt(encryptedText) {
     const iv = Buffer.from(parts[0], 'hex');
     const authTag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];
-    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(FIXED_KEY, 'utf8').slice(0, 32), iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', FIXED_KEY_32, iv);
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
