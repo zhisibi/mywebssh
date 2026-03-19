@@ -12,19 +12,22 @@
     .main { flex:1; display:flex; flex-direction:column; min-width:0; }
     .topbar { 
       padding:14px 18px; background:#111827; border-bottom:1px solid #e5e7eb; flex-shrink:0; 
-      position: sticky; top: 0; z-index: 100;
+      position: sticky; top: 0; z-index: 100; width: 100%;
     }
     .server-info { display:flex; gap:16px; align-items:center; margin-bottom:12px; }
     .server-name { font-weight:700; font-size:16px; color:#fff; }
     .server-details { color:#9ca3af; font-size:13px; }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
-    .content { padding:16px; overflow:auto; flex:1; }
-     .table-wrap { overflow:auto; }
+    .content { padding:16px; overflow:auto; flex:1; position: relative; }
+     .table-wrap { overflow:visible; }
+    table { position: relative; }
     table thead { 
       position: sticky; top: 0; 
       background:#f9fafb; z-index: 10;
     }
     table th, table td { font-size: 15px; }
+    table th { position: sticky; top: 0; background:#f9fafb; z-index: 20; }
+    table thead th { position: sticky; top: 0; background:#f9fafb; z-index: 20; }
     @media (max-width: 768px) {
       .topbar { padding:12px; }
       .server-info { flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:12px; }
@@ -324,7 +327,8 @@
         sortAsc = true;
       }
       renderFiles();
-      setStatus(`排序: ${field === 'name' ? '名称' : field === 'size' ? '大小' : '修改时间'} ${sortAsc ? '↑' : '↓'}`);
+      const fieldNames = { name: '名称', type: '类型', size: '大小', mtime: '修改时间' };
+      setStatus(`排序: ${fieldNames[field] || field} ${sortAsc ? '↑' : '↓'}`);
     }
 
     function getSortIcon(field) {
@@ -344,6 +348,7 @@
         
         let cmp = 0;
         if (sortField === 'name') cmp = a.name.localeCompare(b.name);
+        else if (sortField === 'type') cmp = (a.type || '').localeCompare(b.type || '');
         else if (sortField === 'size') cmp = (a.size || 0) - (b.size || 0);
         else if (sortField === 'mtime') cmp = (a.mtime || 0) - (b.mtime || 0);
         return sortAsc ? cmp : -cmp;
@@ -354,6 +359,7 @@
           <tr>
             <th style="width:36px;"></th>
             <th onclick="toggleSort('name')" style="cursor:pointer;">名称${getSortIcon('name')}</th>
+            <th onclick="toggleSort('type')" style="cursor:pointer;">类型${getSortIcon('type')}</th>
             <th onclick="toggleSort('size')" style="cursor:pointer;">大小${getSortIcon('size')}</th>
             <th onclick="toggleSort('mtime')" style="cursor:pointer;">修改时间${getSortIcon('mtime')}</th>
             <th>权限</th>
@@ -364,9 +370,11 @@
           ${sorted.map(file => {
             const fullPath = joinPath(currentPath, file.name);
             const isDir = file.type === 'directory';
+            const typeName = file.type === 'directory' ? '目录' : file.type === 'link' ? '链接' : '文件';
             return `<tr>
               <td><input type="checkbox" onchange="toggleSelect('${fullPath.replace(/'/g, "\\'")}', this.checked)" /></td>
               <td><div class="name-cell"><span>${icon(file.type)}</span><span class="file-link" onclick="openEntry('${fullPath.replace(/'/g, "\\'")}', '${file.type}')">${escapeHtml(file.name)}</span></div></td>
+              <td>${typeName}</td>
               <td>${isDir ? '-' : formatSize(file.size)}</td>
               <td>${formatTime(file.mtime)}</td>
               <td><code>${escapeHtml(file.mode || '')}</code></td>

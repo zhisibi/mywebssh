@@ -725,13 +725,17 @@ app.get('/api/sftp/read', requireAuth, (req, res) => {
 });
 
 // SFTP 上传
-app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (req, res) => {
-  const { serverId, path: destPath } = req.body;
+// SFTP 上传（JSON 格式，支持前端 base64 上传）
+app.post('/api/sftp/upload', requireAuth, (req, res) => {
+  const { serverId, path: destPath, filename, content } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
-  if (!server || !req.file) {
+  if (!server || !filename) {
     return res.status(400).json({ success: false, error: '参数错误' });
   }
+  
+  const fullPath = destPath === '/' ? '/' + filename : destPath + '/' + filename;
+  const buffer = content ? Buffer.from(content, 'base64') : Buffer.alloc(0);
   
   const conn = new Client();
   
@@ -742,7 +746,7 @@ app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (r
         return res.status(500).json({ success: false, error: err.message });
       }
       
-      const writeStream = sftp.createWriteStream(destPath + '/' + req.file.originalname);
+      const writeStream = sftp.createWriteStream(fullPath);
       
       writeStream.on('close', () => {
         conn.end();
@@ -754,7 +758,7 @@ app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (r
         res.status(500).json({ success: false, error: err.message });
       });
       
-      writeStream.write(req.file.buffer);
+      writeStream.write(buffer);
       writeStream.end();
     });
   });
@@ -777,12 +781,14 @@ app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (r
 
 // SFTP 新建文件夹
 app.post('/api/sftp/mkdir', requireAuth, (req, res) => {
-  const { serverId, path } = req.body;
+  const { serverId, path: parentPath, dirname } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server) {
     return res.status(404).json({ success: false, error: '服务器不存在' });
   }
+  
+  const fullPath = parentPath === '/' ? '/' + dirname : parentPath + '/' + dirname;
   
   const conn = new Client();
   
@@ -793,7 +799,7 @@ app.post('/api/sftp/mkdir', requireAuth, (req, res) => {
         return res.status(500).json({ success: false, error: err.message });
       }
       
-      sftp.mkdir(path, (err) => {
+      sftp.mkdir(fullPath, (err) => {
         conn.end();
         if (err) {
           return res.status(500).json({ success: false, error: err.message });
