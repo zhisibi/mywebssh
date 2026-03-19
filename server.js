@@ -924,7 +924,7 @@ app.post('/api/sftp/rename', requireAuth, (req, res) => {
   conn.connect(connectConfig);
 });
 
-// SFTP 批量下载
+// SFTP 批量下载（支持文件和目录）
 app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
   const { serverId, paths } = req.body;
   const server = getServerConfig(parseInt(serverId));
@@ -935,6 +935,39 @@ app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
   
   const conn = new Client();
   
+  // 递归获取目录下所有文件
+  const getAllFiles = (dirPath, basePath = '') => {
+    return new Promise((resolve) => {
+      const files = [];
+      const listDir = (currentPath, relativePath) => {
+        sftp.readdir(currentPath, (err, list) => {
+          if (err) {
+            console.error(`读取目录失败: ${currentPath}`, err.message);
+            resolve(files);
+            return;
+          }
+          let pending = list.length;
+          if (pending === 0) {
+            resolve(files);
+            return;
+          }
+          list.forEach(item => {
+            const itemPath = currentPath + '/' + item.filename;
+            const itemRelPath = relativePath ? relativePath + '/' + item.filename : item.filename;
+            if (item.attrs.isDirectory()) {
+              listDir(itemPath, itemRelPath);
+            } else if (!item.attrs.isSymbolicLink()) {
+              files.push({ fullPath: itemPath, relativePath: itemRelPath });
+            }
+            pending--;
+            if (pending === 0) resolve(files);
+          });
+        });
+      };
+      listDir(dirPath, basePath);
+    });
+  };
+  
   conn.on('ready', () => {
     conn.sftp((err, sftp) => {
       if (err) {
@@ -942,31 +975,79 @@ app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
         return res.status(500).json({ success: false, error: err.message });
       }
       
-      const archive = archiver('zip', { zlib: { level: 9 } });
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="files.zip"');
-      archive.pipe(res);
-      
-      // 使用 Promise 确保所有文件读取完成后再 finalize
-      const readFilePromise = (filePath) => {
-        return new Promise((resolve) => {
-          sftp.readFile(filePath, (err, data) => {
-            if (!err) {
-              archive.append(data, { name: path.basename(filePath) });
-              resolve(true);
-            } else {
-              console.error(`读取文件失败: ${filePath}`, err.message);
-              resolve(false);
-            }
+      // 先检查路径是文件还是目录
+      const checkAndDownload = async () => {
+        const allFiles = [];
+        
+        for (const p of paths) {
+          // 尝试读取路径作为目录
+          const files = await new Promise((resolve) => {
+            sftp.readdir(p, (err, list) => {
+              if (!err && list.length > 0) {
+                // 是目录，递归获取所有文件
+                const dirFiles = [];
+                const processList = (items, basePath) => {
+                  let pending = items.length;
+                  if (pending === 0) {
+                    resolve(dirFiles);
+                    return;
+                  }
+                  items.forEach(item => {
+                    const itemPath = basePath + '/' + item.filename;
+                    if (item.attrs.isDirectory()) {
+                      sftp.readdir(itemPath, (err2, subList) => {
+                        if (!err2) processList(subList, itemPath);
+                        pending--;
+                        if (pending === 0) resolve(dirFiles);
+                      });
+                    } else if (!item.attrs.isSymbolicLink()) {
+                      dirFiles.push({ fullPath: itemPath, relativePath: item.filename });
+                      pending--;
+                      if (pending === 0) resolve(dirFiles);
+                    } else {
+                      pending--;
+                      if (pending === 0) resolve(dirFiles);
+                    }
+                  });
+                };
+                processList(list, p);
+              } else {
+                // 是文件
+                resolve([{ fullPath: p, relativePath: path.basename(p) }]);
+              }
+            });
           });
-        });
+          allFiles.push(...files);
+        }
+        
+        // 生成 zip
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        res.setHeader('Content-Type', 'application/zip');
+        const zipName = paths.length === 1 ? (path.basename(paths[0]) || 'download') + '.zip' : 'download.zip';
+        res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+        archive.pipe(res);
+        
+        let completed = 0;
+        if (allFiles.length === 0) {
+          archive.finalize();
+        } else {
+          allFiles.forEach(file => {
+            sftp.readFile(file.fullPath, (err, data) => {
+              if (!err) {
+                archive.append(data, { name: file.relativePath });
+              }
+              completed++;
+              if (completed === allFiles.length) {
+                archive.finalize();
+              }
+            });
+          });
+        }
+        
+        res.on('close', () => conn.end());
       };
       
-      Promise.all(paths.map(readFilePromise)).then(() => {
-        archive.finalize();
-      });
-      
-      res.on('close', () => conn.end());
+      checkAndDownload();
     });
   });
   

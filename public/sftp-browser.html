@@ -381,7 +381,7 @@
               <td>
                 <div class="actions">
                   ${isDir ? `<button class="btn" onclick="navigateTo('${fullPath.replace(/'/g, "\\'")}')">进入</button>` : `<button class="btn" onclick="previewFile('${fullPath.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">预览</button>`}
-                  <button class="btn" onclick="downloadOne('${fullPath.replace(/'/g, "\\'")}')">下载</button>
+                  <button class="btn" onclick="downloadOne('${fullPath.replace(/'/g, "\\'")}', '${file.type}')">下载</button>
                   <button class="btn" onclick="renameEntry('${fullPath.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">重命名</button>
                   <button class="btn danger" onclick="deleteEntry('${fullPath.replace(/'/g, "\\'")}', '${file.type}', '${file.name.replace(/'/g, "\\'")}')">删除</button>
                 </div>
@@ -435,9 +435,19 @@
       input.click();
     }
 
-    function downloadOne(fullPath) {
-      const url = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(fullPath)}`;
-      fetchWithAuthDownload(url);
+    function downloadOne(fullPath, isDir) {
+      if (isDir) {
+        // 文件夹：打包下载
+        fetchWithAuthDownload('/api/sftp/download-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serverId: currentServer.id, paths: [fullPath] })
+        }, fullPath.split('/').pop() + '.zip');
+      } else {
+        // 文件：直接下载
+        const url = `/api/sftp/download?serverId=${currentServer.id}&path=${encodeURIComponent(fullPath)}`;
+        fetchWithAuthDownload(url);
+      }
     }
 
     function downloadSelected() {

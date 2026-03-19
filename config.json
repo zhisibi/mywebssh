@@ -13,18 +13,24 @@
       "authType": "password",
       "tags": [],
       "enabled": true,
-      "password": "351bc6c18d34641ba075c37aa7e49c80:ec0f3979b3bfd453297eac1d082f431a:b6133721"
+      "password": "351bc6c18d34641ba075c37aa7e49c80:ec0f3979b3bfd453297eac1d082f431a:b6133721",
+      "_host": "192.168.100.20",
+      "_port": 22,
+      "_username": "root"
     },
     {
       "id": 1773840567330,
       "name": "test",
-      "host": "c052ef2d082695f969f45635c60908a9:37136f47d8eb82eb5a5bca707d6d2f84:6946a338be365181e3",
-      "port": "25da6b6952b26ab2cf4a71c3c0071e19:d6eb6cf608bc59894e5663cf4f0e4590:7c8e",
-      "username": "97ffb7164b8aeff06df960c0a1abc067:57bd511b2294b8983bf15f7eaecec921:f4d417bc",
+      "host": "ca100f149d9039f8ccb851c86b86dfcd:c47e0602cf8f1a9beaaa4de77157b837:e4348dda249e6d1c70",
+      "port": "f2f8b2f662291476b85b48d9a05d40c6:c97ae16df44c60c93f9589a51c87b5de:ee43",
+      "username": "149c3c12a2232cd378bba36fdd154c43:dcc258c0ac4c11a22ee3e516262f8ecc:b566a7cf",
       "authType": "password",
       "tags": [],
       "enabled": true,
-      "password": "c269ae9e2c9fe2a46696f063301fcd95:d862923b737c6b9c4f8124c151930a58:8b4af78937b030"
+      "password": "1e14c2293c4dcc2e21fedcccd36fa100:8a458709b1662b8ba625cd24564b0b6e:5c7e91c7",
+      "_host": "127.0.0.1",
+      "_port": 22,
+      "_username": "root"
     }
   ],
   "port": 3000
