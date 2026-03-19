@@ -567,8 +567,8 @@ wss.on('connection', (ws, req) => {
 
 // SFTP 列表
 app.get('/api/sftp/list', requireAuth, (req, res) => {
-  const { server: serverId, serverId: altServerId, path } = req.query;
-  const id = parseInt(serverId || altServerId);
+  const { serverId, path } = req.query;
+  const id = parseInt(serverId);
   const server = getServerConfig(id);
   
   if (!server) {
@@ -627,7 +627,7 @@ app.get('/api/sftp/list', requireAuth, (req, res) => {
 
 // SFTP 下载
 app.get('/api/sftp/download', requireAuth, (req, res) => {
-  const { server: serverId, path: filePath } = req.query;
+  const { serverId, path: filePath } = req.query;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server) {
@@ -674,9 +674,59 @@ app.get('/api/sftp/download', requireAuth, (req, res) => {
   conn.connect(connectConfig);
 });
 
+// SFTP 读取文件内容（预览）
+app.get('/api/sftp/read', requireAuth, (req, res) => {
+  const { serverId, path: filePath } = req.query;
+  const server = getServerConfig(parseInt(serverId));
+  
+  if (!server) {
+    return res.status(404).json({ success: false, error: '服务器不存在' });
+  }
+  
+  const conn = new Client();
+  
+  conn.on('ready', () => {
+    conn.sftp((err, sftp) => {
+      if (err) {
+        conn.end();
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      
+      const chunks = [];
+      const readStream = sftp.createReadStream(filePath);
+      
+      readStream.on('data', (chunk) => chunks.push(chunk));
+      readStream.on('end', () => {
+        conn.end();
+        const content = Buffer.concat(chunks).toString('utf8');
+        res.json({ success: true, content });
+      });
+      readStream.on('error', (err) => {
+        conn.end();
+        res.status(500).json({ success: false, error: err.message });
+      });
+    });
+  });
+  
+  const connectConfig = {
+    host: server.host,
+    port: server.port || 22,
+    username: server.username
+  };
+  
+  if (server.authType === 'key' && server.privateKey) {
+    connectConfig.privateKey = server.privateKey;
+    if (server.passphrase) connectConfig.passphrase = server.passphrase;
+  } else {
+    connectConfig.password = server.password;
+  }
+  
+  conn.connect(connectConfig);
+});
+
 // SFTP 上传
 app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (req, res) => {
-  const { server: serverId, path: destPath } = req.body;
+  const { serverId, path: destPath } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server || !req.file) {
@@ -727,7 +777,7 @@ app.post('/api/sftp/upload', requireAuth, require('multer')().single('file'), (r
 
 // SFTP 新建文件夹
 app.post('/api/sftp/mkdir', requireAuth, (req, res) => {
-  const { server: serverId, path } = req.body;
+  const { serverId, path } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server) {
@@ -771,7 +821,7 @@ app.post('/api/sftp/mkdir', requireAuth, (req, res) => {
 
 // SFTP 删除
 app.post('/api/sftp/delete', requireAuth, (req, res) => {
-  const { server: serverId, path, isDirectory } = req.body;
+  const { serverId, targetPath, type } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server) {
@@ -787,8 +837,9 @@ app.post('/api/sftp/delete', requireAuth, (req, res) => {
         return res.status(500).json({ success: false, error: err.message });
       }
       
-      if (isDirectory) {
-        sftp.rmdir(path, (err) => {
+      const isDir = type === 'directory';
+      if (isDir) {
+        sftp.rmdir(targetPath, (err) => {
           conn.end();
           if (err) {
             return res.status(500).json({ success: false, error: err.message });
@@ -796,7 +847,7 @@ app.post('/api/sftp/delete', requireAuth, (req, res) => {
           res.json({ success: true });
         });
       } else {
-        sftp.unlink(path, (err) => {
+        sftp.unlink(targetPath, (err) => {
           conn.end();
           if (err) {
             return res.status(500).json({ success: false, error: err.message });
@@ -825,7 +876,7 @@ app.post('/api/sftp/delete', requireAuth, (req, res) => {
 
 // SFTP 重命名
 app.post('/api/sftp/rename', requireAuth, (req, res) => {
-  const { server: serverId, oldPath, newPath } = req.body;
+  const { serverId, oldPath, newPath } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server) {
@@ -869,7 +920,7 @@ app.post('/api/sftp/rename', requireAuth, (req, res) => {
 
 // SFTP 批量下载
 app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
-  const { server: serverId, paths } = req.body;
+  const { serverId, paths } = req.body;
   const server = getServerConfig(parseInt(serverId));
   
   if (!server || !paths || paths.length === 0) {
