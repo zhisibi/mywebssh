@@ -5,20 +5,6 @@
   },
   "servers": [
     {
-      "id": 1773839813662,
-      "name": "在线测试",
-      "host": "e6278198e260d2fae7f0cd91a0e36fa7:a56cef5576efb966c71aca986104666c:ecc54bd335ea042f37b36010a384",
-      "port": "da1567e9f454defb9306d4a6f19a80cc:9beed918f3653217d2f8d9186289491a:c5fa",
-      "username": "4c4de3aed97f989bd83834c981342950:7c77b7cddb0b67486dbdd4e76f274882:10496b17",
-      "authType": "password",
-      "tags": [],
-      "enabled": true,
-      "password": "351bc6c18d34641ba075c37aa7e49c80:ec0f3979b3bfd453297eac1d082f431a:b6133721",
-      "_host": "192.168.100.20",
-      "_port": 22,
-      "_username": "root"
-    },
-    {
       "id": 1773840567330,
       "name": "test",
       "host": "ca100f149d9039f8ccb851c86b86dfcd:c47e0602cf8f1a9beaaa4de77157b837:e4348dda249e6d1c70",
