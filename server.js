@@ -941,17 +941,23 @@ app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="files.zip"');
       archive.pipe(res);
       
-      let completed = 0;
-      paths.forEach(filePath => {
-        sftp.readFile(filePath, (err, data) => {
-          if (!err) {
-            archive.append(data, { name: path.basename(filePath) });
-          }
-          completed++;
-          if (completed === paths.length) {
-            archive.finalize();
-          }
+      // 使用 Promise 确保所有文件读取完成后再 finalize
+      const readFilePromise = (filePath) => {
+        return new Promise((resolve) => {
+          sftp.readFile(filePath, (err, data) => {
+            if (!err) {
+              archive.append(data, { name: path.basename(filePath) });
+              resolve(true);
+            } else {
+              console.error(`读取文件失败: ${filePath}`, err.message);
+              resolve(false);
+            }
+          });
         });
+      };
+      
+      Promise.all(paths.map(readFilePromise)).then(() => {
+        archive.finalize();
       });
       
       res.on('close', () => conn.end());
