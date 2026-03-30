@@ -454,6 +454,13 @@ function getServerConfig(id) {
 
 // SSH 连接
 wss.on('connection', (ws, req) => {
+  // 防止未处理的 WebSocket 错误导致进程崩溃
+  ws.on('error', (err) => { console.error('[WS] error:', err.message); });
+
+  function safeSend(data) {
+    try { if (ws.readyState === WebSocket.OPEN) ws.send(data); } catch(e) {}
+  }
+
   const url = new URL(req.url, 'http://localhost');
   let serverId = parseInt(url.searchParams.get('server'));
   let token = url.searchParams.get('token');
@@ -469,8 +476,8 @@ wss.on('connection', (ws, req) => {
       
       // 验证会话
       if (!token || !sessions.has(token)) {
-        ws.send(JSON.stringify({ type: 'error', data: '未授权' }));
-        ws.close();
+        safeSend(JSON.stringify({ type: 'error', data: '未授权' }));
+        try { ws.close(); } catch(e) {}
         return;
       }
       
@@ -478,8 +485,8 @@ wss.on('connection', (ws, req) => {
       const server = getServerConfig(serverId);
       
       if (!server) {
-        ws.send(JSON.stringify({ type: 'error', data: '服务器不存在' }));
-        ws.close();
+        safeSend(JSON.stringify({ type: 'error', data: '服务器不存在' }));
+        try { ws.close(); } catch(e) {}
         return;
       }
       
@@ -490,31 +497,31 @@ wss.on('connection', (ws, req) => {
       
       conn.on('ready', () => {
         // 发送连接成功消息
-        ws.send(JSON.stringify({ type: 'connected', message: 'SSH连接已建立' }));
+        safeSend(JSON.stringify({ type: 'connected', message: 'SSH连接已建立' }));
         
         conn.shell({ term: 'xterm-utf8' }, (err, stream) => {
           if (err) {
-            ws.send(JSON.stringify({ type: 'error', data: '打开终端失败: ' + err.message }));
-            ws.close();
+            safeSend(JSON.stringify({ type: 'error', data: '打开终端失败: ' + err.message }));
+            try { ws.close(); } catch(e) {}
             return;
           }
           shell = stream;
           
           stream.on('data', (data) => {
-            ws.send(JSON.stringify({ type: 'data', data: data.toString('utf8') }));
+            safeSend(JSON.stringify({ type: 'data', data: data.toString('utf8') }));
           });
           
           stream.on('close', () => {
-            ws.send(JSON.stringify({ type: 'close', data: '连接已关闭' }));
-            ws.close();
+            safeSend(JSON.stringify({ type: 'close', data: '连接已关闭' }));
+            try { ws.close(); } catch(e) {}
           });
         });
       });
       
       conn.on('error', (err) => {
         console.error(`[SSH] 连接错误: ${err.message}`);
-        ws.send(JSON.stringify({ type: 'error', data: '连接错误: ' + err.message }));
-        ws.close();
+        safeSend(JSON.stringify({ type: 'error', data: '连接错误: ' + err.message }));
+        try { ws.close(); } catch(e) {}
       });
       
       // 建立 SSH 连接
@@ -557,8 +564,8 @@ wss.on('connection', (ws, req) => {
       
     } catch (e) {
       console.error('处理连接消息错误:', e);
-      ws.send(JSON.stringify({ type: 'error', data: '连接失败' }));
-      ws.close();
+      safeSend(JSON.stringify({ type: 'error', data: '连接失败' }));
+      try { ws.close(); } catch(e2) {}
     }
   });
 });
