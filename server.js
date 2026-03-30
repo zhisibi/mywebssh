@@ -1074,6 +1074,59 @@ app.post('/api/sftp/download-batch', requireAuth, (req, res) => {
   conn.connect(connectConfig);
 });
 
+// 数据备份
+app.get('/api/admin/backup', requireAuth, (req, res) => {
+  try {
+    const exportData = config.servers.map(s => ({
+      name: s.name,
+      host: s._host || '',
+      port: s._port || 22,
+      username: s._username || '',
+      authType: s.authType || 'password',
+      password: s.password ? decrypt(s.password) : '',
+      privateKey: s.privateKey ? decrypt(s.privateKey) : '',
+      passphrase: s.passphrase ? decrypt(s.passphrase) : '',
+      tags: s.tags || [],
+      enabled: s.enabled !== false
+    }));
+    res.json({ success: true, servers: exportData });
+  } catch (e) {
+    res.status(500).json({ success: false, message: '备份失败' });
+  }
+});
+
+// 数据恢复
+app.post('/api/admin/restore', requireAuth, (req, res) => {
+  try {
+    let servers;
+    if (req.body.servers && Array.isArray(req.body.servers)) {
+      servers = req.body.servers;
+    } else if (req.body.content) {
+      const parsed = JSON.parse(req.body.content);
+      servers = parsed.servers || (Array.isArray(parsed) ? parsed : null);
+    }
+    if (!servers || !Array.isArray(servers)) {
+      return res.status(400).json({ success: false, message: '无效的数据格式' });
+    }
+    const encrypted = servers.map(s => ({
+      id: s.id || Date.now() + Math.floor(Math.random() * 1000),
+      name: s.name, host: encrypt(s.host || ''), _host: s.host || '',
+      port: encrypt(String(s.port || 22)), _port: s.port || 22,
+      username: encrypt(s.username || ''), _username: s.username || '',
+      authType: s.authType || 'password',
+      password: s.password ? encrypt(s.password) : '',
+      privateKey: s.privateKey ? encrypt(s.privateKey) : '',
+      passphrase: s.passphrase ? encrypt(s.passphrase) : '',
+      tags: s.tags || [], enabled: true
+    }));
+    config.servers = encrypted;
+    saveConfig();
+    res.json({ success: true, message: '恢复成功' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: '恢复失败' });
+  }
+});
+
 // 启动服务器
 const PORT = config.port || 3000;
 server.listen(PORT, () => {
